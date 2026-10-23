@@ -191,8 +191,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       </div>
       <div className="absolute bottom-2.5 left-3 text-[11px] text-slate-600 font-mono tracking-wide font-medium">
         {lang === 'es'
-          ? 'Gráfico de Equilibrio en Vivo • Sensor de Movimiento 60Hz (256 muestras)'
-          : 'Live Balance Sway Graph • 60Hz Motion Sensor (256 samples)'}
+          ? 'Gráfico de Equilibrio en Vivo - Sensor de Movimiento 60Hz (256 muestras)'
+          : 'Live Balance Sway Graph - 60Hz Motion Sensor (256 samples)'}
       </div>
     </div>
   );

@@ -93,7 +93,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Sunlight-Legible Triage Header Banner */}
+      {/* Triage Header Banner */}
       <div
         className={`rounded-xl p-6 border-2 shadow-sm transition-all relative overflow-hidden ${
           isRemoval
@@ -174,7 +174,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
         </div>
       )}
 
-      {/* Normative Population Prior Applied Alert Banner */}
+      {/* Baseline Safety Margin Banner */}
       {triage.hasIndividualBaseline === false && (
         <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 flex items-start space-x-3 shadow-sm">
           <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
@@ -216,9 +216,9 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
         </div>
       )}
 
-      {/* 3-Core Metric Comparison Matrix */}
+      {/* Test Metrics Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Metric 1: Postural Sway */}
+        {/* Metric 1: Balance Check */}
         <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-sm relative overflow-hidden">
           <div className="text-xs text-slate-600 uppercase tracking-wider font-bold mb-1">
             {lang === 'es' ? 'Prueba 2: Chequeo de Equilibrio' : 'Test 2: Balance Check'}
@@ -247,7 +247,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
                   </span>
                 </div>
                 <div className="flex justify-between font-bold">
-                  <span className="text-slate-700">{lang === 'es' ? 'Delta de Degradación:' : 'Degradation Delta:'}</span>
+                  <span className="text-slate-700">{lang === 'es' ? 'Cambio desde Línea Base:' : 'Change from Baseline:'}</span>
                   <span
                     className={`font-mono tabular-nums ${
                       triage.swayDegradationPercent >= 25
@@ -295,7 +295,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
                   </span>
                 </div>
                 <div className="flex justify-between font-bold">
-                  <span className="text-slate-700">{lang === 'es' ? 'Delta de Latencia:' : 'Latency Delta:'}</span>
+                  <span className="text-slate-700">{lang === 'es' ? 'Diferencia de Tiempo:' : 'Time Difference:'}</span>
                   <span
                     className={`font-mono tabular-nums ${
                       triage.reactionDelayDeltaMs >= 40
@@ -343,7 +343,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
                   </span>
                 </div>
                 <div className="flex justify-between font-bold">
-                  <span className="text-slate-700">{lang === 'es' ? 'Delta de Tiempo / Errores:' : 'Time Delta / Errors:'}</span>
+                  <span className="text-slate-700">{lang === 'es' ? 'Diferencia / Errores:' : 'Difference / Errors:'}</span>
                   <span
                     className={`font-mono tabular-nums ${
                       triage.kingDevickDeltaSeconds >= 5 || kingDevickScore.errorsCount >= 2

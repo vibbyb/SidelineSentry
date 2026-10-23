@@ -1,8 +1,4 @@
-/**
- * SidelineSentry Bilingual Localization Dictionary
- * High School Athletic Safety & Sideline Concussion Protocol
- * Strict compile-time type safety with 100% key parity between English and Spanish.
- */
+// English and Spanish translations for SidelineSentry
 
 import { REPORT_AND_FLOW_TRANSLATIONS } from './reportTranslations';
 
@@ -90,8 +86,8 @@ export const TRANSLATIONS = {
     startBalanceTest: 'START 15-SECOND TEST',
     timeRemaining: 'Time Remaining',
     liveStability: 'Live Stability',
-    simulatePerturbation: 'Simulate Loss of Balance (Postural Spike)',
-    motionSpikeDetected: 'Sudden Movement Detected — Stance Restarted',
+    simulatePerturbation: 'Simulate Loss of Balance (Movement Spike)',
+    motionSpikeDetected: 'Sudden Movement Detected - Stance Restarted',
     motionSpikeDesc: 'The phone slipped or moved too quickly. Let us restart this 15-second balance test.',
     retestStance: 'Restart Balance Test',
 
@@ -120,7 +116,7 @@ export const TRANSLATIONS = {
     verdictCautionDesc: 'Scores were slightly off from their baseline. Wait 15 minutes, re-test, and have an athletic trainer check them before making any return decision.',
     verdictClearDesc: 'Post-impact scores matched their preseason baseline. Continue watching the athlete for any delayed headaches, dizziness, or confusion.',
     verdictInvalidDesc: 'The test was tapped too early or the phone slipped. Please re-run the test to get clean scores.',
-    normativePriorApplied: 'Standard Population Baseline Applied (+15% extra safety margin)',
+    normativePriorApplied: 'No Preseason Baseline On File (+15% extra safety margin)',
     returnRoster: 'Back to Team Roster',
     retestBtn: 'Re-Run Safety Check',
     generatePacket: 'Open Doctor & Parent Report',
@@ -132,7 +128,7 @@ export const TRANSLATIONS = {
     printPdf: 'Print / Save PDF',
     exportJson: 'Export JSON',
     evaluatorNotes: 'Notes & What Happened on the Field',
-    certBlockTitle: 'Trainer / Coach Attestation',
+    certBlockTitle: 'Trainer / Coach Sign-Off',
     evaluatorName: 'Trainer / Coach Full Name',
     evaluatorRole: 'Role (Athletic Trainer, Coach, Nurse)',
     licenseNumber: 'School / Certification ID #',
@@ -223,8 +219,8 @@ export const TRANSLATIONS = {
     startBalanceTest: 'INICIAR PRUEBA DE 15 SEGUNDOS',
     timeRemaining: 'Tiempo Restante',
     liveStability: 'Estabilidad en Vivo',
-    simulatePerturbation: 'Simular Pérdida de Equilibrio (Pico Postural)',
-    motionSpikeDetected: 'Movimiento Brusco Detectado — Prueba Reiniciada',
+    simulatePerturbation: 'Simular Pérdida de Equilibrio (Pico de Movimiento)',
+    motionSpikeDetected: 'Movimiento Brusco Detectado - Prueba Reiniciada',
     motionSpikeDesc: 'El teléfono resbaló o se movió demasiado rápido. Reiniciemos esta prueba de 15 segundos.',
     retestStance: 'Reiniciar Prueba de Equilibrio',
 
@@ -253,7 +249,7 @@ export const TRANSLATIONS = {
     verdictCautionDesc: 'Los puntajes variaron ligeramente de su línea base. Espere 15 minutos, repita la prueba y consulte a un entrenador antes de cualquier decisión.',
     verdictClearDesc: 'Los puntajes coincidieron con su línea base de pretemporada. Continúe observando si aparecen dolores de cabeza o mareos más tarde.',
     verdictInvalidDesc: 'El teléfono resbaló o se tocó la pantalla antes de tiempo. Por favor repita la prueba para obtener resultados limpios.',
-    normativePriorApplied: 'Línea Base Estándar Aplicada (+15% margen de seguridad extra)',
+    normativePriorApplied: 'Sin Línea Base Previa (+15% margen de seguridad extra)',
     returnRoster: 'Volver a Lista de Atletas',
     retestBtn: 'Repetir Chequeo',
     generatePacket: 'Abrir Informe para Médicos y Padres',
@@ -265,7 +261,7 @@ export const TRANSLATIONS = {
     printPdf: 'Imprimir / Guardar PDF',
     exportJson: 'Exportar JSON',
     evaluatorNotes: 'Notas y lo que ocurrió en el campo',
-    certBlockTitle: 'Atestación del Entrenador / Evaluador',
+    certBlockTitle: 'Firma del Entrenador / Evaluador',
     evaluatorName: 'Nombre Completo del Entrenador / Evaluador',
     evaluatorRole: 'Rol (Entrenador Deportivo, Coach, Enfermera)',
     licenseNumber: 'ID de Escuela / Certificación #',

@@ -1,6 +1,4 @@
-/**
- * Safe cross-platform clipboard copy helper with legacy fallback for non-secure HTTP / local LAN IP contexts.
- */
+// Clipboard helper with fallback for non-secure contexts
 export async function copyToClipboard(text: string): Promise<boolean> {
   if (typeof window === 'undefined') return false;
 

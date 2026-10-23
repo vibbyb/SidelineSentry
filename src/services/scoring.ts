@@ -1,9 +1,4 @@
-/**
- * SidelineSentry Scoring & Safety Service
- * Compares post-impact test scores against the athlete's preseason baseline,
- * checks for sudden movement slips or anticipation cheating,
- * and generates clear sideline recommendations (Sit Them Out, Needs Checkup, Scores Look Normal).
- */
+// Evaluates test scores against baselines and generates sideline recommendations
 
 import { AthleteProfile, AssessmentRecord } from '../types/clinical';
 
@@ -19,9 +14,7 @@ export interface ValidityResult {
   code?: string;
 }
 
-/**
- * Checks reaction test trials for cheating (<150ms anticipation) or inconsistent effort (CV > 0.35)
- */
+// Validates reaction trials for anticipation (<150ms) or high variance
 export function auditReactionTrials(trials: number[], falseStarts: number = 0): ValidityResult {
   if (falseStarts >= 3) {
     return {
@@ -93,12 +86,7 @@ export function auditReactionTrials(trials: number[], falseStarts: number = 0): 
   };
 }
 
-/**
- * Checks balance stance stability index:
- * - Flags corrupted/non-finite telemetry
- * - Flags phone drops or slips (> 2.5 m/s²)
- * - Flags resting flat on a bench (< 0.005 m/s²)
- */
+// Validates balance test stability index and movement artifacts
 export function auditPosturalSway(
   stabilityIndex: number,
   isBaselineOrSampleCount: boolean | number = false,
@@ -185,9 +173,7 @@ export function auditPeakMotionArtifact(peakSway: number): ValidityResult {
   };
 }
 
-/**
- * Evaluates all 4 test scores against preseason baselines and returns recommendations
- */
+// Evaluates test scores against preseason baselines and returns recommendations
 export function calculateTriage(
   athlete: AthleteProfile,
   balance: AssessmentRecord['balanceScore'],

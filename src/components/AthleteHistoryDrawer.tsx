@@ -107,7 +107,7 @@ export const AthleteHistoryDrawer: React.FC<AthleteHistoryDrawerProps> = ({
               </div>
             </div>
 
-            {/* Longitudinal Recovery Sparkline */}
+            {/* Trend Sparkline */}
             {history.length > 0 && (
               <div className="p-4 rounded-xl bg-white border border-slate-300 space-y-3 shadow-sm">
                 <div className="flex items-center justify-between text-xs">

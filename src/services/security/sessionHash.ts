@@ -1,9 +1,4 @@
-/**
- * Session Verification Code Generator
- * Creates a standard SHA-256 verification hash of the sideline safety check
- * using the standard browser Web Crypto API (crypto.subtle) when available,
- * and falling back to a pure-TypeScript NIST SHA-256 implementation on non-secure LAN HTTP contexts.
- */
+// Creates a SHA-256 verification code for completed assessments, using Web Crypto or fallback
 
 function utf8Encode(str: string): Uint8Array {
   if (typeof TextEncoder !== 'undefined') {
@@ -47,10 +42,7 @@ function rotr(n: number, b: number): number {
   return (n >>> b) | (n << (32 - b));
 }
 
-/**
- * Pure-TypeScript implementation of NIST FIPS 180-4 SHA-256.
- * Guarantees bit-identical output to crypto.subtle.digest('SHA-256', ...) across all runtimes.
- */
+// Fallback SHA-256 implementation when Web Crypto is unavailable
 export function pureSha256Hex(payload: string): string {
   const bytes = utf8Encode(payload);
   const bitLen = bytes.length * 8;

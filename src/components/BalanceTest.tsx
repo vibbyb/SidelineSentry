@@ -63,10 +63,8 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
   const lastUiUpdateRef = useRef<number>(0);
   const halftimeFiredRef = useRef<boolean>(false);
 
-  // Sensor frame ingestion (Transverse plane sway: Mediolateral X + Anteroposterior Z)
   const handleFrame = useCallback((frame: MotionFrame) => {
-    // Throttle React state updates to ~10Hz (100ms) to eliminate fiber allocation churn,
-    // while ringBufferRef executes synchronously at full hardware polling rate (50-100Hz).
+    // Throttle UI updates to ~10Hz while buffering at full rate
     const now = Date.now();
     if (now - lastUiUpdateRef.current >= 100) {
       lastUiUpdateRef.current = now;
@@ -76,8 +74,7 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
     const elapsedSinceStart = recordingStartTimeRef.current > 0 ? Date.now() - recordingStartTimeRef.current : 0;
     const magnitude = Math.sqrt(frame.x * frame.x + frame.z * frame.z);
 
-    // Filter-settling gate: Only push into ringBuffer and track peakSway after 500ms startup settling
-    // (or immediately in simulated mode) to prevent settling transients from contaminating sessionSumSq.
+    // Wait 500ms for initial sensor reading to stabilize before recording
     if (elapsedSinceStart > 500 || frame.isSimulated) {
       ringBufferRef.current.push(magnitude);
       if (magnitude > peakSwayRef.current) {
@@ -85,9 +82,7 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
       }
     }
 
-    // Motion artifact / grip-slip watchdog:
-    // If instantaneous acceleration exceeds 2.5 m/s² during active recording (after 500ms startup filter settling),
-    // halt test, emit audible alert, and prompt immediate in-situ retest.
+    // Stop test if phone slips or sudden movement occurs (> 2.5 m/s²)
     if (phaseRef.current === 'recording' && elapsedSinceStart > 500 && magnitude > 2.5) {
       if (intervalRef.current !== null) {
         clearInterval(intervalRef.current);
@@ -99,7 +94,7 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
       return;
     }
 
-    // Downsample recording for clinical export (0 heap strings)
+    // Downsample recording for summary display
     if (Math.random() < 0.2) {
       swayHistoryRef.current.push(round3(frame.rms));
     }
@@ -232,7 +227,7 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
 
   return (
     <div className="bg-white border border-slate-300 rounded-xl p-6 shadow-sm relative overflow-hidden">
-      {/* Clean Athletic Target Strip (Replaces AI-template icon box header) */}
+      {/* Header Strip */}
       <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl mb-4 shadow-xs">
         <div>
           <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
@@ -260,7 +255,7 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
         </p>
       </div>
 
-      {/* Live Waveform Oscilloscope (Tracking Mediolateral X and Anteroposterior Z) */}
+      {/* Live Balance Sway Graph */}
       <div className="mb-6">
         <WaveformCanvas
           ringBuffer={ringBufferRef.current}
@@ -294,7 +289,7 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
       {phase === 'countdown' && (
         <div className="flex flex-col items-center justify-center py-8 text-center animate-fade-in">
           <div className="text-xs uppercase tracking-widest text-slate-600 font-bold mb-2">
-            {lang === 'es' ? 'Prepárese • Coloque Contra el Esternón' : 'Get Ready • Position Against Sternum'}
+            {lang === 'es' ? 'Prepárese - Coloque Contra el Pecho' : 'Get Ready - Position Against Chest'}
           </div>
           <div className="text-7xl font-black font-mono text-emerald-600 tabular-nums">
             {countdown}

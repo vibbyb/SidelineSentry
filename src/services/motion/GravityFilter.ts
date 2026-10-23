@@ -1,17 +1,4 @@
-/**
- * High-pass gravity decoupling filter.
- * Isolates vestibular postural sway and corrective tremor (0.5 - 4.0 Hz) from static pitch
- * and low-frequency respiratory sway (<0.4 Hz) when holding the phone against the chest.
- *
- * Implements discrete 1st-order IIR filter:
- * y[n] = alpha * (y[n-1] + x[n] - x[n-1])
- *
- * Time-Delta Adaptive Filtering:
- * When sampling interval dt (seconds) is provided by the hardware IMU clock (e.g., event.interval),
- * alpha is dynamically computed as:
- * alpha = RC / (RC + dt), where RC = 1 / (2 * pi * fc) with fc = 0.5 Hz.
- * This guarantees mathematical invariance across 50Hz Android, 60Hz iPhone, and 100Hz hardware IMU sensors.
- */
+// High-pass filter to isolate quick balance shifts from slow posture tilt
 export class HighPassFilter {
   private alpha: number;
   private cutoffHz: number;
@@ -67,15 +54,7 @@ export class HighPassFilter {
   }
 }
 
-/**
- * 3-Axis Decoupler applying high-pass filtering across lateral (X), vertical (Y),
- * and anteroposterior (Z) channels.
- *
- * Computes Transverse Planar Euclidean Norm:
- * Sway = sqrt(fx^2 + fz^2)
- * Combining lateral mediolateral (X) and forward/backward anteroposterior (Z) sway
- * while strictly isolating vertical spinal compression / breathing heave (Y).
- */
+// Filters accelerometer axes and computes planar sway magnitude
 export class PosturalSwayFilter {
   private xFilter: HighPassFilter;
   private yFilter: HighPassFilter;
@@ -98,7 +77,7 @@ export class PosturalSwayFilter {
     const fy = this.yFilter.filter(ay, dtSeconds);
     const fz = this.zFilter.filter(az, dtSeconds);
 
-    // Transverse Planar Euclidean Norm (isolates X and Z; rejects vertical spinal heave Y)
+    // Planar sway magnitude from horizontal axes
     const planarMagnitude = Math.sqrt(fx * fx + fz * fz);
     const magnitude = planarMagnitude;
 

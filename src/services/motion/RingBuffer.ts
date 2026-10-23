@@ -1,7 +1,4 @@
-/**
- * Pre-allocated circular ring buffer for real-time sensor processing.
- * Guarantees zero heap allocation per tick and O(1) online RMS calculation.
- */
+// Fixed-size circular buffer for sensor samples and RMS calculation
 export class RingBuffer {
   private readonly buffer: Float32Array;
   private readonly capacity: number;
@@ -21,7 +18,7 @@ export class RingBuffer {
   public push(value: number): void {
     if (!Number.isFinite(value)) return;
 
-    // Quantize to IEEE-754 Float32 once so addition and circular subtraction use identical bit representations
+    // Store float32 values for consistent sumSq tracking
     const f32Val = Math.fround(value);
     const sqVal = f32Val * f32Val;
 
@@ -42,7 +39,7 @@ export class RingBuffer {
     } else {
       const oldValue = this.buffer[this.head];
       this.buffer[this.head] = f32Val;
-      // Exact Float32-squared delta update with zero cumulative drift
+      // Update running square sum
       this.sumSq = Math.max(0, this.sumSq - (oldValue * oldValue) + sqVal);
       this.sum = this.sum - oldValue + f32Val;
       this.head = (this.head + 1) % this.capacity;
@@ -87,10 +84,7 @@ export class RingBuffer {
     this.sessionCount = 0;
   }
 
-  /**
-   * Copies current sequential history into an external pre-allocated array
-   * without creating heap garbage.
-   */
+  // Copies oldest-to-newest samples into a target array
   public copyOrdered(target: Float32Array): number {
     const copyCount = Math.min(this.count, target.length);
     if (this.count < this.capacity) {

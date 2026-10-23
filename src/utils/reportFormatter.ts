@@ -1,7 +1,4 @@
-/**
- * SidelineSentry Clinician & Parent Report Formatter
- * Deterministic text generation, JSON serialization, and sport biomechanics notes.
- */
+// Formats sideline summary reports for clipboard, printing, and JSON export
 
 import { AthleteProfile, AssessmentRecord, ClinicianCredential } from '../types/clinical';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';

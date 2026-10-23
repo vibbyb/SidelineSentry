@@ -1,8 +1,4 @@
-/**
- * SidelineSentry Offline Storage
- * Saves athletes and sideline safety checkups directly to the browser's localStorage
- * so the app works 100% offline without needing a database or cloud backend.
- */
+// LocalStorage helpers for athletes and assessments
 
 import { AthleteProfile, AssessmentRecord } from '../types/clinical';
 
@@ -106,7 +102,7 @@ export function getAthleteHistory(athleteId: string): AssessmentRecord[] {
   return all.filter(a => a.athleteId === athleteId);
 }
 
-// Student-friendly backward compatible object
+// Backward-compatible export
 export const AssessmentStore = {
   loadAthletes,
   saveAthletes,

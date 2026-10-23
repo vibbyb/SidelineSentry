@@ -297,7 +297,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             </div>
           </div>
 
-          {/* Sports Medicine Certification Block */}
+          {/* Evaluator Sign-Off Block */}
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 print:bg-white print:border-gray-300 space-y-4 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2 print:border-gray-300">
               <h4 className="text-xs font-bold uppercase tracking-wider text-blue-700 print:text-black flex items-center space-x-1.5">
@@ -362,7 +362,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             <p className="text-[10px] text-slate-600 leading-tight italic font-medium">{t.attestationStatement}</p>
           </div>
 
-          {/* Cryptographic Session Digest Block */}
+          {/* Verification Code Block */}
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-sm">
             <div className="flex items-center space-x-2">
               <Lock className="w-4 h-4 text-emerald-700 shrink-0" />

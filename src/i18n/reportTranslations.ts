@@ -1,13 +1,9 @@
-/**
- * SidelineSentry Extended Report & Assessment Flow Translations
- * Comprehensive bilingual dictionaries for Clinician & Parent Reports,
- * assessment testing cards, telemetry overlays, and athletic roster management.
- */
+// Extended translations for reports and assessment flows
 
 export const REPORT_AND_FLOW_TRANSLATIONS = {
   en: {
     // Clinician & Parent Report Modal
-    reportDocTitle: 'SIDELINESENTRY • DOCTOR & PARENT SIDELINE SUMMARY',
+    reportDocTitle: 'SIDELINESENTRY - DOCTOR & PARENT SIDELINE SUMMARY',
     reportDocSubtitle: 'Sideline Safety Check & Score Summary (Based on CDC HEADS UP Guidelines)',
     sessionIdLabel: 'Session ID',
     evaluatedLabel: 'Evaluated',
@@ -17,7 +13,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     sportPositionLabel: 'Sport & Position',
     baselineDateLabel: 'Baseline Record Date',
     preseasonCertified: 'Preseason Certified',
-    walkOnNormative: 'Normative Standard (+15% Margin)',
+    walkOnNormative: 'No Preseason Baseline (+15% Margin)',
     sportImpactHelmet: 'Hard helmet-to-helmet or turf contact during play.',
     sportImpactGeneral: 'Direct collision during play.',
     sportImpactEvaluated: 'Athlete evaluated on the sideline within 5 minutes of impact.',
@@ -71,7 +67,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     summaryRedFlags: 'RED FLAGS REPORTED:',
     summaryNone: 'None',
     summaryNoneReported: '- None reported',
-    summaryAttestationHeader: 'EVALUATOR ATTESTATION:',
+    summaryAttestationHeader: 'EVALUATOR SIGN-OFF:',
     summaryEvaluator: 'Evaluator:',
     summaryStaffFallback: 'High School Staff',
     summaryIdLicense: 'ID / License:',
@@ -81,13 +77,13 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     summaryNotesHeader: 'EVALUATOR NOTES:',
     summarySafetyNotice: 'SAFETY NOTICE:',
 
-    // Balance Test & Telemetry
+    // Balance Test & Sensor Data
     preseasonTarget: 'Preseason Target',
     audioNotice: 'Audio Cues: Double chime when test finishes',
     sternumInstruction: 'Hold phone firmly against the center of the athlete\'s chest',
     sensorPermissionDenied: 'Motion Sensor Permission Denied',
     requestSensorAccess: 'Enable Motion Sensors',
-    waveformTelemetry: 'Live Inertial Telemetry',
+    waveformTelemetry: 'Live Sensor Data',
     swayRmsLive: 'Instant RMS Sway',
     peakSwayLabel: 'Peak Sway',
 
@@ -97,7 +93,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     doNotTapYet: 'DO NOT TAP YET...',
     tapAnywhere: 'TAP ANYWHERE ON SCREEN!',
     tooFastWarning: 'Too fast! Wait for the screen to turn green.',
-    falseStartNotice: 'Early tap detected — trial reset',
+    falseStartNotice: 'Early tap detected - trial reset',
     averageReactionMs: 'Average Reaction',
     fastestReactionMs: 'Fastest Trial',
 
@@ -112,7 +108,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     // Triage Verdict & Recommendations
     sidelineRecommendation: 'Sideline Recommendation',
     emergencyStopNotice: 'EMERGENCY MEDICAL ATTENTION REQUIRED',
-    safetyMarginNotice: 'Normative Standard Applied (+15% Safety Margin)',
+    safetyMarginNotice: 'No Preseason Baseline Applied (+15% Safety Margin)',
     saveAsBaseline: 'Save as Preseason Baseline',
     baselineSaved: 'Baseline Saved',
 
@@ -150,7 +146,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
   },
   es: {
     // Clinician & Parent Report Modal
-    reportDocTitle: 'SIDELINESENTRY • RESUMEN DE CAMPO PARA MÉDICOS Y PADRES',
+    reportDocTitle: 'SIDELINESENTRY - RESUMEN DE CAMPO PARA MÉDICOS Y PADRES',
     reportDocSubtitle: 'Chequeo de seguridad de campo y resumen de puntajes (Basado en guías de CDC HEADS UP)',
     sessionIdLabel: 'ID de Sesión',
     evaluatedLabel: 'Evaluado',
@@ -160,7 +156,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     sportPositionLabel: 'Deporte y Posición',
     baselineDateLabel: 'Fecha de Línea Base',
     preseasonCertified: 'Certificado en Pretemporada',
-    walkOnNormative: 'Estándar Normativo (+15% Margen)',
+    walkOnNormative: 'Sin Línea Base Previa (+15% Margen)',
     sportImpactHelmet: 'Contacto fuerte casco a casco o con el césped durante el juego.',
     sportImpactGeneral: 'Colisión directa durante el juego.',
     sportImpactEvaluated: 'Atleta evaluado en la banda dentro de los 5 minutos posteriores al impacto.',
@@ -214,7 +210,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     summaryRedFlags: 'SEÑALES DE ALARMA REPORTADAS:',
     summaryNone: 'Ninguno',
     summaryNoneReported: '- Ninguna reportada',
-    summaryAttestationHeader: 'ATESTACIÓN DEL EVALUADOR:',
+    summaryAttestationHeader: 'FIRMA DEL EVALUADOR:',
     summaryEvaluator: 'Evaluador:',
     summaryStaffFallback: 'Personal Escolar',
     summaryIdLicense: 'ID / Licencia:',
@@ -230,7 +226,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     sternumInstruction: 'Sostenga el teléfono firmemente contra el centro del pecho del atleta',
     sensorPermissionDenied: 'Permiso de Sensor de Movimiento Denegado',
     requestSensorAccess: 'Habilitar Sensores de Movimiento',
-    waveformTelemetry: 'Telemetría Inercial en Vivo',
+    waveformTelemetry: 'Datos del Sensor en Vivo',
     swayRmsLive: 'Oscilación RMS Instantánea',
     peakSwayLabel: 'Pico de Oscilación',
 
@@ -240,7 +236,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     doNotTapYet: '¡NO TOQUE TODAVÍA...!',
     tapAnywhere: '¡TOQUE EN CUALQUIER LUGAR DE LA PANTALLA!',
     tooFastWarning: '¡Demasiado rápido! Espere a que la pantalla se ponga verde.',
-    falseStartNotice: 'Toque anticipado detectado — intento reiniciado',
+    falseStartNotice: 'Toque anticipado detectado - intento reiniciado',
     averageReactionMs: 'Reacción Promedio',
     fastestReactionMs: 'Intento Más Rápido',
 
@@ -255,7 +251,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     // Triage Verdict & Recommendations
     sidelineRecommendation: 'Recomendación de Campo',
     emergencyStopNotice: 'SE REQUIERE ATENCIÓN MÉDICA DE EMERGENCIA',
-    safetyMarginNotice: 'Estándar Normativo Aplicado (+15% Margen de Seguridad)',
+    safetyMarginNotice: 'Sin Línea Base Previa Aplicada (+15% Margen de Seguridad)',
     saveAsBaseline: 'Guardar como Línea Base de Pretemporada',
     baselineSaved: 'Línea Base Guardada',
 

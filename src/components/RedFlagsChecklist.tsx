@@ -178,7 +178,7 @@ export const RedFlagsChecklist: React.FC<RedFlagsChecklistProps> = ({
         </div>
       </div>
 
-      {/* Somatic & Neurological Red Flags Grid */}
+      {/* Red Flags Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
         {RED_FLAG_ITEMS.map(item => {
           const checked = Boolean(flags[item.key]);

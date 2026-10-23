@@ -143,7 +143,7 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
 
   return (
     <div className="bg-white border border-slate-300 rounded-xl p-6 shadow-sm relative overflow-hidden">
-      {/* Clean Athletic Target Strip (Replaces AI-template icon box header) */}
+      {/* Header Strip */}
       <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl mb-4 shadow-xs">
         <div>
           <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
@@ -269,8 +269,8 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
           </h3>
           <p className="text-xs text-slate-600 mt-1 font-medium">
             {lang === 'es'
-              ? `Tiempo Total de Lectura: ${elapsedSeconds.toFixed(1)}s • Errores: ${errorsCount}`
-              : `Total Reading Time: ${elapsedSeconds.toFixed(1)}s • Errors: ${errorsCount}`}
+              ? `Tiempo Total de Lectura: ${elapsedSeconds.toFixed(1)}s | Errores: ${errorsCount}`
+              : `Total Reading Time: ${elapsedSeconds.toFixed(1)}s | Errors: ${errorsCount}`}
           </p>
           {cardSplits.length > 0 && (
             <div className="mt-4 grid grid-cols-3 gap-2 max-w-xs mx-auto">

@@ -147,7 +147,7 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
     };
   }, []);
 
-  // Developer / Automation test hook to trigger verified human reaction speed (~215ms) in headless browsers
+  // Test helper for simulated tap in automated tests
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as unknown as { __triggerSidelineReactionTap?: (customMs?: number) => void }).__triggerSidelineReactionTap = (customMs?: number) => {
@@ -168,7 +168,7 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
 
   return (
     <div className="bg-white border border-slate-300 rounded-xl p-6 shadow-sm relative overflow-hidden">
-      {/* Clean Athletic Target Strip (Replaces AI-template icon box header) */}
+      {/* Header Strip */}
       <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl mb-4 shadow-xs">
         <div>
           <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">

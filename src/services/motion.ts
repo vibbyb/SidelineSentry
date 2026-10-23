@@ -1,9 +1,4 @@
-/**
- * SidelineSentry Motion Sensor Service
- * Reads the phone's accelerometer during the 15-second balance test.
- * On desktop computers (which don't have accelerometers), it automatically
- * runs a realistic balance sway simulation so coaches and competition judges can test the app.
- */
+// Motion sensor service for balance testing, with desktop simulation fallback
 
 import { IMotionProvider, MotionCallback, MotionFrame } from '../types/clinical';
 import { PosturalSwayFilter } from './motion/GravityFilter';
@@ -19,14 +14,10 @@ export function isMobileDevice(): boolean {
   );
 }
 
-// Zero-allocation IEEE-754 register arithmetic rounding helper (0 heap strings):
+// Rounds to 3 decimal places
 export const round3 = (n: number): number => Math.round(n * 1000) / 1000;
 
-/**
- * Hardware Accelerometer Sensor
- * Uses the browser's DeviceMotionEvent to read raw acceleration,
- * cleans up gravity using PosturalSwayFilter, and calculates live balance sway.
- */
+// Reads phone accelerometer using DeviceMotionEvent
 export class HardwareMotionProvider implements IMotionProvider {
   private active = false;
   private callback: MotionCallback | null = null;
@@ -129,11 +120,7 @@ export class HardwareMotionProvider implements IMotionProvider {
   }
 }
 
-/**
- * Desktop Sensor Simulator
- * Generates realistic body sway oscillations at 60 FPS so judges and coaches
- * can test all 4 steps on laptops without a real phone sensor.
- */
+// Simulates body sway oscillations for desktop testing
 export class SimulatedMotionProvider implements IMotionProvider {
   private active = false;
   private timerId: number | null = null;
@@ -231,11 +218,7 @@ export class SimulatedMotionProvider implements IMotionProvider {
   }
 }
 
-/**
- * Creates the appropriate motion provider:
- * - Real hardware accelerometer on mobile phones
- * - Smooth simulated sway on desktop computers for testing
- */
+// Returns hardware provider on mobile or simulation on desktop
 export function createMotionProvider(preferredProfile: 'healthy' | 'concussed' = 'concussed'): IMotionProvider {
   if (isMobileDevice()) {
     return new HardwareMotionProvider();
