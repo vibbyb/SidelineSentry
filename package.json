@@ -1,0 +1,42 @@
+{
+  "name": "sidelinesentry",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:unit": "vitest run src/services/motion/motion.test.ts",
+    "test:perf": "vitest run src/services/motion/ringbuffer.test.ts",
+    "test:tilt": "vitest run src/services/motion/gravity.test.ts",
+    "test:validity": "vitest run src/services/scoring/validity.test.ts",
+    "test:security": "vitest run src/services/security/security_isolation.test.ts"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.454.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.6.3",
+    "vite": "^6.4.5",
+    "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "vite": "^6.4.5",
+    "esbuild": "^0.25.0",
+    "tinypool": "^2.2.0"
+  }
+}
