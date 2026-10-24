@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AthleteProfile, AssessmentRecord, IMotionProvider } from './types/clinical';
-import { createMotionProvider } from './services/motion';
+import { createMotionProvider, SimulatedMotionProvider } from './services/motion';
 import { calculateTriage } from './services/scoring';
 import { BalanceTest } from './components/BalanceTest';
 import { ReactionTest } from './components/ReactionTest';
@@ -11,17 +11,18 @@ import { ClinicianReportModal } from './components/ClinicianReportModal';
 import { RosterDashboard } from './components/RosterDashboard';
 import { AthleteHistoryDrawer } from './components/AthleteHistoryDrawer';
 import { SidelineHeader, SidelineBottomNav, AppView, AssessmentStep } from './components/SidelineChrome';
-import { loadAthletes, saveAthletes, saveAssessment } from './services/storage';
+import { loadAthletes, saveAthletes, saveAssessment, deleteAthlete } from './services/storage';
 import { TRANSLATIONS, SupportedLocale } from './i18n/translations';
+import { ROSTER_TEXT } from './i18n/roster';
 import { ChevronRight } from 'lucide-react';
 
-const INITIAL_ATHLETES: AthleteProfile[] = [
-  { id: 'ath-1', name: 'Marcus Vance', jerseyNumber: '12', sport: 'Football', position: 'Quarterback', baselineDate: '2026-08-15', baselineStabilityIndex: 0.078, baselineReactionTimeMs: 220, baselineKingDevickSeconds: 39.5 },
-  { id: 'ath-2', name: 'Jordan Hayes', jerseyNumber: '7', sport: 'Soccer', position: 'Midfielder', baselineDate: '2026-08-18', baselineStabilityIndex: 0.082, baselineReactionTimeMs: 235, baselineKingDevickSeconds: 41.2 },
-  { id: 'ath-3', name: 'Colton Brooks', jerseyNumber: '44', sport: 'Ice Hockey', position: 'Defenseman', baselineDate: '2026-09-02', baselineStabilityIndex: 0.089, baselineReactionTimeMs: 228, baselineKingDevickSeconds: 42.0 },
-  { id: 'ath-4', name: 'Tyler Harris', jerseyNumber: '18', sport: 'Lacrosse', position: 'Attack', baselineDate: '2026-08-22', baselineStabilityIndex: 0.085, baselineReactionTimeMs: 240, baselineKingDevickSeconds: 43.1 },
-  { id: 'ath-5', name: 'Maya Lin', jerseyNumber: '3', sport: 'Basketball', position: 'Point Guard', baselineDate: '2026-09-10', baselineStabilityIndex: 0.075, baselineReactionTimeMs: 215, baselineKingDevickSeconds: 38.0 },
-  { id: 'ath-6', name: 'Devon Miller', jerseyNumber: '55', sport: 'Football', position: 'Linebacker', hasRecordedBaseline: false }
+export const INITIAL_ATHLETES: AthleteProfile[] = [
+  { id: 'ath-1', name: 'Test Athlete 1', jerseyNumber: '12', sport: 'Football', position: 'Quarterback', baselineDate: '2026-08-15', baselineStabilityIndex: 0.078, baselineReactionTimeMs: 220, baselineKingDevickSeconds: 39.5 },
+  { id: 'ath-2', name: 'Test Athlete 2', jerseyNumber: '7', sport: 'Soccer', position: 'Midfielder', baselineDate: '2026-08-18', baselineStabilityIndex: 0.082, baselineReactionTimeMs: 235, baselineKingDevickSeconds: 41.2 },
+  { id: 'ath-3', name: 'Test Athlete 3', jerseyNumber: '44', sport: 'Ice Hockey', position: 'Defenseman', baselineDate: '2026-09-02', baselineStabilityIndex: 0.089, baselineReactionTimeMs: 228, baselineKingDevickSeconds: 42.0 },
+  { id: 'ath-4', name: 'Test Athlete 4', jerseyNumber: '18', sport: 'Lacrosse', position: 'Attack', baselineDate: '2026-08-22', baselineStabilityIndex: 0.085, baselineReactionTimeMs: 240, baselineKingDevickSeconds: 43.1 },
+  { id: 'ath-5', name: 'Test Athlete 5', jerseyNumber: '3', sport: 'Basketball', position: 'Point Guard', baselineDate: '2026-09-10', baselineStabilityIndex: 0.075, baselineReactionTimeMs: 215, baselineKingDevickSeconds: 38.0 },
+  { id: 'ath-6', name: 'Test Athlete 6', jerseyNumber: '55', sport: 'Football', position: 'Linebacker', hasRecordedBaseline: false }
 ];
 
 const INITIAL_FLAGS: AssessmentRecord['redFlags'] = {
@@ -45,6 +46,7 @@ const DEFAULT_KD: AssessmentRecord['kingDevickScore'] = {
 export const App: React.FC = () => {
   const [lang, setLang] = useState<SupportedLocale>('en');
   const t = TRANSLATIONS[lang];
+  const rosterText = ROSTER_TEXT[lang];
 
   const [athletes, setAthletes] = useState<AthleteProfile[]>(() => loadAthletes(INITIAL_ATHLETES));
   const [activeAthlete, setActiveAthlete] = useState<AthleteProfile | null>(null);
@@ -53,7 +55,9 @@ export const App: React.FC = () => {
 
   const [view, setView] = useState<AppView>('roster');
   const [step, setStep] = useState<AssessmentStep>('red_flags');
-  const [motionProvider] = useState<IMotionProvider>(() => createMotionProvider());
+  const [motionProvider, setMotionProvider] = useState<IMotionProvider>(() => createMotionProvider());
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+  const [demoNotice, setDemoNotice] = useState<string | null>(null);
 
   // Active Assessment State
   const [redFlags, setRedFlags] = useState<AssessmentRecord['redFlags']>(INITIAL_FLAGS);
@@ -74,14 +78,51 @@ export const App: React.FC = () => {
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
   }, [view, step]);
 
-  const handleStartTriage = (athlete: AthleteProfile) => {
+  const handleStartTriage = (athlete: AthleteProfile, asDemo = false) => {
     setActiveAthlete(athlete);
+    setIsDemoMode(asDemo);
+    if (!asDemo) {
+      setMotionProvider(createMotionProvider());
+    }
+    setDemoNotice(null);
     setRedFlags({ ...INITIAL_FLAGS });
     setBalanceScore({ ...DEFAULT_BALANCE });
     setReactionScore({ ...DEFAULT_REACTION });
     setKingDevickScore({ ...DEFAULT_KD });
     setStep('red_flags');
     setView('screening');
+  };
+
+  const handleStartDemo = () => {
+    // Pick Test Athlete 1 if present, otherwise first roster athlete or fallback
+    const demoAthlete =
+      athletes.find(a => a.id === 'ath-1') ||
+      athletes[0] ||
+      INITIAL_ATHLETES[0];
+
+    setIsDemoMode(true);
+    setMotionProvider(new SimulatedMotionProvider('healthy'));
+    setDemoNotice(null);
+    handleStartTriage(demoAthlete, true);
+  };
+
+  const handleDeleteAthlete = (athleteId: string) => {
+    const updated = deleteAthlete(athleteId);
+    setAthletes(updated);
+    if (activeAthlete?.id === athleteId) setActiveAthlete(null);
+    if (historyAthlete?.id === athleteId) setHistoryAthlete(null);
+  };
+
+  const handleRestoreDefaults = () => {
+    setAthletes(INITIAL_ATHLETES);
+    saveAthletes(INITIAL_ATHLETES);
+  };
+
+  const handleImportRoster = (importedAthletes: AthleteProfile[]) => {
+    setAthletes(importedAthletes);
+    if (activeAthlete && !importedAthletes.some(a => a.id === activeAthlete.id)) {
+      setActiveAthlete(null);
+    }
   };
 
   const handleSynthesizeVerdict = (
@@ -97,6 +138,7 @@ export const App: React.FC = () => {
       athleteId: activeAthlete.id,
       timestamp: new Date().toLocaleString(),
       isPostImpact: true,
+      isDemo: isDemoMode,
       balanceScore: upBalance,
       reactionScore: upReaction,
       kingDevickScore: upKD,
@@ -125,6 +167,7 @@ export const App: React.FC = () => {
       athleteId: activeAthlete.id,
       timestamp: new Date().toLocaleString(),
       isPostImpact: true,
+      isDemo: isDemoMode,
       isEmergencyLockdown: true,
       balanceScore: skippedBalance,
       reactionScore: skippedReaction,
@@ -181,12 +224,16 @@ export const App: React.FC = () => {
           {view === 'roster' && (
             <RosterDashboard
               athletes={athletes}
-              onSelectAthlete={handleStartTriage}
+              onSelectAthlete={ath => handleStartTriage(ath, false)}
               onAddAthlete={newAth => {
                 const updated = [newAth, ...athletes];
                 setAthletes(updated);
                 saveAthletes(updated);
               }}
+              onDeleteAthlete={handleDeleteAthlete}
+              onRestoreDefaults={handleRestoreDefaults}
+              onImportRoster={handleImportRoster}
+              onStartDemo={handleStartDemo}
               onOpenHistory={ath => {
                 setHistoryAthlete(ath);
                 setShowHistoryDrawer(true);
@@ -197,6 +244,18 @@ export const App: React.FC = () => {
 
           {view === 'screening' && activeAthlete && (
             <div className="space-y-4">
+              {isDemoMode && (
+                <div className="flex items-center justify-between px-3.5 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs shadow-xs">
+                  <div className="flex items-center space-x-2">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-200 text-amber-900 font-bold text-[11px] uppercase tracking-wide">
+                      {rosterText.demoModeBadge}
+                    </span>
+                    <span className="text-[11px] font-medium text-amber-800">
+                      {rosterText.demoBannerDesc}
+                    </span>
+                  </div>
+                </div>
+              )}
               {step === 'red_flags' && (
                 <div className="space-y-4">
                   <RedFlagsChecklist
@@ -208,14 +267,14 @@ export const App: React.FC = () => {
                   <div className="flex items-center justify-between pt-1">
                     <button
                       onClick={() => setView('roster')}
-                      className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition"
+                      className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition min-h-[44px] flex items-center"
                     >
                       {t.cancelScreening}
                     </button>
                     {Object.values(redFlags).some(Boolean) ? (
                       <button
                         onClick={handleEmergencyLockdown}
-                        className="flex items-center space-x-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs tracking-wide transition shadow-xs"
+                        className="flex items-center space-x-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs tracking-wide transition shadow-xs min-h-[44px]"
                       >
                         <span>{t.lockdownProceed}</span>
                         <ChevronRight className="w-4 h-4 stroke-[2.5]" />
@@ -223,7 +282,7 @@ export const App: React.FC = () => {
                     ) : (
                       <button
                         onClick={() => setStep('balance')}
-                        className="flex items-center space-x-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs tracking-wide transition shadow-xs"
+                        className="flex items-center space-x-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs tracking-wide transition shadow-xs min-h-[44px]"
                       >
                         <span>{t.proceedToBalance}</span>
                         <ChevronRight className="w-4 h-4 stroke-[2.5]" />
@@ -273,31 +332,54 @@ export const App: React.FC = () => {
           )}
 
           {view === 'verdict' && activeAthlete && latestAssessment && (
-            <TriageVerdict
-              athlete={activeAthlete}
-              assessment={latestAssessment}
-              onOpenReport={() => setShowReportModal(true)}
-              onRetest={() => handleStartTriage(activeAthlete)}
-              onBackToRoster={() => setView('roster')}
-              onSaveAsBaseline={() => {
-                if (!activeAthlete || !latestAssessment) return;
-                const updatedAthlete: AthleteProfile = {
-                  ...activeAthlete,
-                  hasRecordedBaseline: true,
-                  baselineDate: new Date().toISOString().split('T')[0],
-                  baselineStabilityIndex: latestAssessment.balanceScore.stabilityIndex,
-                  baselineReactionTimeMs: latestAssessment.reactionScore.averageMs,
-                  baselineKingDevickSeconds: latestAssessment.kingDevickScore.durationSeconds
-                };
-                setActiveAthlete(updatedAthlete);
-                setAthletes(prev => {
-                  const updatedList = prev.map(a => (a.id === updatedAthlete.id ? updatedAthlete : a));
-                  saveAthletes(updatedList);
-                  return updatedList;
-                });
-              }}
-              lang={lang}
-            />
+            <div className="space-y-4">
+              {(isDemoMode || latestAssessment.isDemo) && (
+                <div className="flex items-center justify-between px-3.5 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs shadow-xs">
+                  <div className="flex items-center space-x-2">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-200 text-amber-900 font-bold text-[11px] uppercase tracking-wide">
+                      {rosterText.demoModeBadge}
+                    </span>
+                    <span className="text-[11px] font-medium text-amber-800">
+                      {rosterText.demoBannerDesc}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {demoNotice && (
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs font-semibold">
+                  {demoNotice}
+                </div>
+              )}
+              <TriageVerdict
+                athlete={activeAthlete}
+                assessment={latestAssessment}
+                onOpenReport={() => setShowReportModal(true)}
+                onRetest={() => handleStartTriage(activeAthlete, isDemoMode)}
+                onBackToRoster={() => setView('roster')}
+                onSaveAsBaseline={() => {
+                  if (!activeAthlete || !latestAssessment) return;
+                  if (latestAssessment.isDemo || isDemoMode) {
+                    setDemoNotice(rosterText.demoBaselineBlocked);
+                    return;
+                  }
+                  const updatedAthlete: AthleteProfile = {
+                    ...activeAthlete,
+                    hasRecordedBaseline: true,
+                    baselineDate: new Date().toISOString().split('T')[0],
+                    baselineStabilityIndex: latestAssessment.balanceScore.stabilityIndex,
+                    baselineReactionTimeMs: latestAssessment.reactionScore.averageMs,
+                    baselineKingDevickSeconds: latestAssessment.kingDevickScore.durationSeconds
+                  };
+                  setActiveAthlete(updatedAthlete);
+                  setAthletes(prev => {
+                    const updatedList = prev.map(a => (a.id === updatedAthlete.id ? updatedAthlete : a));
+                    saveAthletes(updatedList);
+                    return updatedList;
+                  });
+                }}
+                lang={lang}
+              />
+            </div>
           )}
         </main>
 

@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { AthleteProfile, AssessmentRecord } from '../types/clinical';
-import { AlertTriangle, CheckCircle2, FileText, ShieldAlert, RotateCcw, AlertOctagon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileText, ShieldAlert, RotateCcw, AlertOctagon, Share2, X } from 'lucide-react';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
+import { translateTrigger, translateSkippedReason } from '../i18n/triggerTranslator';
+import { buildParentShareSummary, shareParentSummary } from '../utils/share';
+import { SHARE_THEME_TEXT } from '../i18n/shareTheme';
 
 interface TriageVerdictProps {
   athlete: AthleteProfile;
@@ -13,67 +16,6 @@ interface TriageVerdictProps {
   lang?: SupportedLocale;
 }
 
-const translateTrigger = (trig: string, locale: SupportedLocale): string => {
-  if (locale !== 'es') return trig;
-  if (trig.startsWith('EMERGENCY PROTOCOL:')) {
-    return trig.replace('EMERGENCY PROTOCOL:', 'PROTOCOLO DE EMERGENCIA:');
-  }
-  if (trig.includes('Standard School Safety Margin Applied')) {
-    return 'Margen de seguridad escolar aplicado (evaluación de base +15% más estricta)';
-  }
-  if (trig.includes('Corrupted Sensor / Timing Telemetry')) {
-    return 'Telemetría de sensor o tiempo dañada: Métrica no válida detectada. Repetir prueba requerido.';
-  }
-  if (trig.includes('Eye Tracking Incomplete')) {
-    return 'Rastreo ocular incompleto: La prueba se cerró antes de completar las 3 tarjetas. Repetir prueba requerido.';
-  }
-  if (trig.includes('Noticeable Balance Loss')) {
-    return trig.replace('Noticeable Balance Loss', 'Pérdida notable de equilibrio').replace('above baseline', 'sobre línea base');
-  }
-  if (trig.includes('Mild Balance Decrease')) {
-    return trig.replace('Mild Balance Decrease', 'Disminución leve de equilibrio').replace('above baseline', 'sobre línea base');
-  }
-  if (trig.includes('Severe Balance Loss')) {
-    return trig.replace('Severe Balance Loss (Sway', 'Pérdida grave de equilibrio (Oscilación');
-  }
-  if (trig.includes('Significant Reaction Delay')) {
-    return trig.replace('Significant Reaction Delay', 'Retraso significativo de reacción').replace('slower than baseline', 'más lento que la base');
-  }
-  if (trig.includes('Mild Reaction Slowing')) {
-    return trig.replace('Mild Reaction Slowing', 'Demora leve de reacción');
-  }
-  if (trig.includes('Eye Tracking Delay')) {
-    return trig.replace('Eye Tracking Delay', 'Retraso de rastreo ocular').replace('delay', 'retraso').replace('mistakes', 'errores').replace('mistake', 'error');
-  }
-  if (trig.includes('Mild Eye Tracking Delay')) {
-    return trig.replace('Mild Eye Tracking Delay', 'Retraso leve de rastreo ocular').replace('delay', 'retraso');
-  }
-  if (trig.includes('Balance Validity Warning:')) {
-    return trig.replace('Balance Validity Warning:', 'Aviso de validez de equilibrio:');
-  }
-  if (trig.includes('Reaction Validity Warning:')) {
-    return trig.replace('Reaction Validity Warning:', 'Aviso de validez de reacción:');
-  }
-  if (trig.includes('Eye Tracking Validity Warning: Reading completed unnaturally fast')) {
-    return 'Aviso de validez de rastreo ocular: Lectura completada de forma anormalmente rápida (<12.0s). Repetir prueba requerido.';
-  }
-  if (trig.includes('Eye Tracking Validity Warning:')) {
-    return trig.replace('Eye Tracking Validity Warning:', 'Aviso de validez de rastreo ocular:');
-  }
-  return trig;
-};
-
-const translateSkippedReason = (reason: string | undefined, locale: SupportedLocale): string => {
-  if (!reason || locale !== 'es') return reason || '';
-  if (reason.toLowerCase().includes('emergency lockdown active')) {
-    return 'Protocolo de emergencia activo (banderas rojas reportadas)';
-  }
-  if (reason.toLowerCase().includes('pre-test red flag')) {
-    return 'Señal de alarma previa al chequeo';
-  }
-  return reason;
-};
-
 export const TriageVerdict: React.FC<TriageVerdictProps> = ({
   athlete,
   assessment,
@@ -84,16 +26,31 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
   lang = 'en'
 }) => {
   const t = TRANSLATIONS[lang];
+  const shareText = SHARE_THEME_TEXT[lang];
   const [baselineSaved, setBaselineSaved] = useState<boolean>(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
+  const [manualShareSummary, setManualShareSummary] = useState<string | null>(null);
   const { triage, balanceScore, reactionScore, kingDevickScore } = assessment;
 
   const isRemoval = triage.verdict === 'IMMEDIATE_REMOVAL';
   const isCaution = triage.verdict === 'EVALUATION_RECOMMENDED';
   const isInvalid = triage.verdict === 'INVALID_ASSESSMENT_RETEST_REQUIRED';
+  const isDemo = Boolean((assessment as { isDemo?: boolean }).isDemo);
+
+  const handleShareWithParent = async () => {
+    const summaryText = buildParentShareSummary({ ...assessment, athlete }, lang);
+    const shareTitle = `${athlete.name} - ${shareText.shareTitle}`;
+    const outcome = await shareParentSummary(summaryText, shareTitle);
+    if (outcome === 'shared' || outcome === 'copied') {
+      setShareToast(shareText.shareSuccessToast);
+      setTimeout(() => setShareToast(null), 3500);
+    } else if (outcome === 'manual') {
+      setManualShareSummary(summaryText);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Triage Header Banner */}
       <div
         className={`rounded-xl p-6 border-2 shadow-sm transition-all relative overflow-hidden ${
           isRemoval
@@ -129,7 +86,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
 
             <div>
               <div className="text-[10px] uppercase tracking-wider font-bold opacity-80">
-                {lang === 'es' ? 'Recomendación de Campo' : 'Sideline Recommendation'}
+                {t.sidelineRecommendationTag}
               </div>
               <h1 className="text-base sm:text-lg font-black tracking-tight uppercase leading-tight mt-0.5">
                 {isRemoval && t.verdictRemoval}
@@ -151,30 +108,26 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
           </p>
 
           <div className="bg-white/80 px-3 py-2 rounded-xl border border-slate-200/80 text-xs flex items-center justify-between">
-            <span className="text-slate-500 font-medium">{lang === 'es' ? 'Atleta:' : 'Athlete:'}</span>
+            <span className="text-slate-500 font-medium">{t.athleteLabel}</span>
             <span className="font-bold text-slate-900">{athlete.name} (#{athlete.jerseyNumber} • {athlete.sport})</span>
           </div>
         </div>
       </div>
 
-      {/* Emergency Lockdown Notice Banner */}
       {assessment.isEmergencyLockdown && (
         <div className="p-4 rounded-xl bg-red-50 border border-red-300 text-red-950 flex items-start space-x-3 shadow-sm">
           <AlertOctagon className="w-5 h-5 text-red-700 shrink-0 mt-0.5" />
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-red-700">
-              {lang === 'es' ? 'Parada de Emergencia Activada' : 'Emergency Stop Triggered'}
+              {t.emergencyStopNoticeTitle}
             </div>
             <p className="text-xs text-red-900 mt-1 leading-relaxed font-medium">
-              {lang === 'es'
-                ? 'Las pruebas físicas se omitieron debido a señales de alarma graves. El atleta debe ser evaluado por un médico o entrenador atlético de inmediato.'
-                : 'Physical tests were skipped because of serious warning signs. The athlete should be seen by a doctor or athletic trainer immediately.'}
+              {t.emergencyStopNoticeDesc}
             </p>
           </div>
         </div>
       )}
 
-      {/* Baseline Safety Margin Banner */}
       {triage.hasIndividualBaseline === false && (
         <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 flex items-start space-x-3 shadow-sm">
           <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
@@ -183,23 +136,18 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
               {t.normativePriorApplied}
             </div>
             <p className="text-xs text-amber-900 mt-1 leading-relaxed font-medium">
-              {lang === 'es'
-                ? 'Este atleta no tiene una línea base de pretemporada registrada. Se aplicó un margen de seguridad más estricto del 15% para proteger al atleta.'
-                : 'This athlete does not have a preseason baseline on file. A stricter 15% safety margin was applied to ensure the athlete is protected.'}
+              {t.noBaselineMarginNotice}
             </p>
           </div>
         </div>
       )}
 
-      {/* Triggers Breakdown */}
       {triage.primaryTriggers.length > 0 && (
         <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-sm relative overflow-hidden">
           <div className="flex items-center space-x-2 text-xs uppercase font-bold text-red-700 mb-3">
             <AlertOctagon className="w-4 h-4" />
             <span>
-              {lang === 'es'
-                ? `Señales de Alerta y Cambios de Puntaje (${triage.primaryTriggers.length})`
-                : `Warning Signs & Score Changes (${triage.primaryTriggers.length})`}
+              {t.warningSignsCount.replace('{count}', String(triage.primaryTriggers.length))}
             </span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -216,17 +164,16 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
         </div>
       )}
 
-      {/* Test Metrics Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Metric 1: Balance Check */}
         <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-sm relative overflow-hidden">
           <div className="text-xs text-slate-600 uppercase tracking-wider font-bold mb-1">
-            {lang === 'es' ? 'Prueba 2: Chequeo de Equilibrio' : 'Test 2: Balance Check'}
+            {t.test2Title}
           </div>
           {balanceScore.skippedReason ? (
             <div className="py-2">
               <span className="text-xs font-bold text-amber-800 px-2 py-0.5 rounded bg-amber-100 border border-amber-300">
-                {lang === 'es' ? 'OMITIDO POR SEGURIDAD' : 'SKIPPED FOR SAFETY'}
+                {t.skippedForSafety}
               </span>
               <p className="text-[11px] text-slate-600 mt-1.5 leading-snug font-medium">
                 {translateSkippedReason(balanceScore.skippedReason, lang)}
@@ -241,13 +188,13 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
 
               <div className="mt-4 pt-3 border-t border-slate-200 text-xs space-y-1">
                 <div className="flex justify-between text-slate-600 font-medium">
-                  <span>{lang === 'es' ? 'Línea Base Pretemporada:' : 'Preseason Baseline:'}</span>
+                  <span>{t.preseasonBaselineRow}</span>
                   <span className="text-slate-900 font-mono font-bold">
                     {(athlete.baselineStabilityIndex || 0.085).toFixed(3)} m/s²
                   </span>
                 </div>
                 <div className="flex justify-between font-bold">
-                  <span className="text-slate-700">{lang === 'es' ? 'Cambio desde Línea Base:' : 'Change from Baseline:'}</span>
+                  <span className="text-slate-700">{t.changeFromBaselineRow}</span>
                   <span
                     className={`font-mono tabular-nums ${
                       triage.swayDegradationPercent >= 25
@@ -269,12 +216,12 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
         {/* Metric 2: Reaction Time */}
         <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-sm relative overflow-hidden">
           <div className="text-xs text-slate-600 uppercase tracking-wider font-bold mb-1">
-            {lang === 'es' ? 'Prueba 3: Velocidad de Reacción' : 'Test 3: Reaction Speed'}
+            {t.test3Title}
           </div>
           {reactionScore.skippedReason ? (
             <div className="py-2">
               <span className="text-xs font-bold text-amber-800 px-2 py-0.5 rounded bg-amber-100 border border-amber-300">
-                {lang === 'es' ? 'OMITIDO POR SEGURIDAD' : 'SKIPPED FOR SAFETY'}
+                {t.skippedForSafety}
               </span>
               <p className="text-[11px] text-slate-600 mt-1.5 leading-snug font-medium">
                 {translateSkippedReason(reactionScore.skippedReason, lang)}
@@ -289,13 +236,13 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
 
               <div className="mt-4 pt-3 border-t border-slate-200 text-xs space-y-1">
                 <div className="flex justify-between text-slate-600 font-medium">
-                  <span>{lang === 'es' ? 'Línea Base Pretemporada:' : 'Preseason Baseline:'}</span>
+                  <span>{t.preseasonBaselineRow}</span>
                   <span className="text-slate-900 font-mono font-bold">
                     {athlete.baselineReactionTimeMs || 230} ms
                   </span>
                 </div>
                 <div className="flex justify-between font-bold">
-                  <span className="text-slate-700">{lang === 'es' ? 'Diferencia de Tiempo:' : 'Time Difference:'}</span>
+                  <span className="text-slate-700">{t.timeDiffRow}</span>
                   <span
                     className={`font-mono tabular-nums ${
                       triage.reactionDelayDeltaMs >= 40
@@ -314,15 +261,15 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
           )}
         </div>
 
-        {/* Metric 3: Vision & Eye Tracking */}
+        {/* Metric 3: Reading Test */}
         <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-sm relative overflow-hidden">
           <div className="text-xs text-slate-600 uppercase tracking-wider font-bold mb-1">
-            {lang === 'es' ? 'Prueba 4: Prueba de Vista y Lectura' : 'Test 4: Eye & Reading Test'}
+            {t.test4Title}
           </div>
           {kingDevickScore.skippedReason ? (
             <div className="py-2">
               <span className="text-xs font-bold text-amber-800 px-2 py-0.5 rounded bg-amber-100 border border-amber-300">
-                {lang === 'es' ? 'OMITIDO POR SEGURIDAD' : 'SKIPPED FOR SAFETY'}
+                {t.skippedForSafety}
               </span>
               <p className="text-[11px] text-slate-600 mt-1.5 leading-snug font-medium">
                 {translateSkippedReason(kingDevickScore.skippedReason, lang)}
@@ -337,13 +284,13 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
 
               <div className="mt-4 pt-3 border-t border-slate-200 text-xs space-y-1">
                 <div className="flex justify-between text-slate-600 font-medium">
-                  <span>{lang === 'es' ? 'Línea Base Pretemporada:' : 'Preseason Baseline:'}</span>
+                  <span>{t.preseasonBaselineRow}</span>
                   <span className="text-slate-900 font-mono font-bold">
                     {(athlete.baselineKingDevickSeconds || 42.0).toFixed(1)} s
                   </span>
                 </div>
                 <div className="flex justify-between font-bold">
-                  <span className="text-slate-700">{lang === 'es' ? 'Diferencia / Errores:' : 'Difference / Errors:'}</span>
+                  <span className="text-slate-700">{t.diffErrorsRow}</span>
                   <span
                     className={`font-mono tabular-nums ${
                       triage.kingDevickDeltaSeconds >= 5 || kingDevickScore.errorsCount >= 2
@@ -360,7 +307,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
                     {kingDevickScore.cardSplits.map((split, i) => (
                       <div key={i} className="bg-slate-50 border border-slate-200/80 rounded py-1 px-1">
                         <div className="text-[9px] text-slate-500 uppercase font-bold tracking-tight">
-                          {lang === 'es' ? `Tarjeta ${i + 1}` : `Card ${i + 1}`}
+                          {t.cardOf.replace('{current}', String(i + 1)).split(' ')[0]} {i + 1}
                         </div>
                         <div className="text-[11px] font-mono font-black text-slate-800 tabular-nums">{split.toFixed(1)}s</div>
                       </div>
@@ -373,32 +320,44 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
         </div>
       </div>
 
-      {/* CDC Disclaimer */}
       <div className="p-4 rounded-xl bg-white border border-slate-300 text-xs text-slate-600 leading-relaxed font-medium shadow-sm">
         <strong className="text-slate-900 font-bold">
-          {lang === 'es' ? 'Aviso de CDC HEADS UP:' : 'CDC HEADS UP Disclaimer:'}
+          {t.cdcDisclaimerTitle}
         </strong>{' '}
-        {lang === 'es'
-          ? 'SidelineSentry es una herramienta de detección observacional de campo basada en las pautas de CDC HEADS UP, no un dispositivo de diagnóstico médico. Cualquier atleta con sospecha de lesión en la cabeza debe ser evaluado por un médico.'
-          : triage.nonDiagnosticDisclaimer}
+        {lang === 'es' ? t.cdcDisclaimerEs : triage.nonDiagnosticDisclaimer}
       </div>
 
-      {/* Action Footer */}
       <div className="flex flex-col gap-2 pt-2">
-        {/* Save as Preseason Baseline Option (Healthy Screening Mode) */}
-        {onSaveAsBaseline && !isRemoval && !isInvalid && (
+        {onSaveAsBaseline && (isDemo || (!isRemoval && !isInvalid)) && (
           <div>
             {baselineSaved ? (
               <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold shadow-xs">
                 <div className="flex items-center space-x-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>
-                    {lang === 'es' ? 'Línea Base de Pretemporada Guardada en la Lista' : 'Preseason Baseline Saved to Roster'}
+                    {t.baselineSavedToRoster}
                   </span>
                 </div>
                 <span className="font-mono text-[11px] text-emerald-700 font-black">
                   {balanceScore.stabilityIndex.toFixed(3)} m/s² • {reactionScore.averageMs}ms
                 </span>
+              </div>
+            ) : isDemo ? (
+              <div>
+                <button
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  className="w-full flex items-center justify-center space-x-2 py-3 px-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-400 font-bold text-xs cursor-not-allowed min-h-[44px]"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-slate-400" />
+                  <span>
+                    {t.saveAsPreseasonBtn}
+                  </span>
+                </button>
+                <p className="text-[11px] text-amber-800 mt-1.5 font-medium">
+                  {shareText.demoBaselineDisabled}
+                </p>
               </div>
             ) : (
               <button
@@ -407,11 +366,11 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
                   setBaselineSaved(true);
                   onSaveAsBaseline();
                 }}
-                className="w-full flex items-center justify-center space-x-2 py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs transition active:scale-[0.98]"
+                className="w-full flex items-center justify-center space-x-2 py-3 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs transition active:scale-[0.98] min-h-[44px]"
               >
                 <CheckCircle2 className="w-4 h-4 text-emerald-700" />
                 <span>
-                  {lang === 'es' ? 'Guardar Puntajes como Línea Base de Pretemporada' : "Save Scores as Athlete's Preseason Baseline"}
+                  {t.saveAsPreseasonBtn}
                 </span>
               </button>
             )}
@@ -419,8 +378,28 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
         )}
 
         <button
+          type="button"
+          onClick={handleShareWithParent}
+          className="w-full flex items-center justify-center space-x-2 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition active:scale-[0.98] min-h-[44px]"
+        >
+          <Share2 className="w-4 h-4 text-emerald-400" />
+          <span>{shareText.shareWithParentBtn}</span>
+        </button>
+
+        {shareToast && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold flex items-center space-x-2 shadow-xs"
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{shareToast}</span>
+          </div>
+        )}
+
+        <button
           onClick={onOpenReport}
-          className="w-full flex items-center justify-center space-x-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition active:scale-[0.98]"
+          className="w-full flex items-center justify-center space-x-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition active:scale-[0.98] min-h-[44px]"
         >
           <FileText className="w-4 h-4" />
           <span>{t.generatePacket}</span>
@@ -429,19 +408,63 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={onRetest}
-            className="flex items-center justify-center space-x-1.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 transition"
+            className="flex items-center justify-center space-x-1.5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 transition min-h-[44px]"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>{t.retestBtn}</span>
           </button>
           <button
             onClick={onBackToRoster}
-            className="flex items-center justify-center space-x-1.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200 transition"
+            className="flex items-center justify-center space-x-1.5 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200 transition min-h-[44px]"
           >
             <span>{t.returnRoster}</span>
           </button>
         </div>
       </div>
+
+      {manualShareSummary && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="manual-share-dialog-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm"
+        >
+          <div className="bg-white border-2 border-slate-900 w-full max-w-lg rounded-2xl p-5 shadow-2xl space-y-3 text-slate-900">
+            <div className="flex items-center justify-between">
+              <h3 id="manual-share-dialog-title" className="text-sm font-bold uppercase tracking-wide">
+                {shareText.manualShareTitle}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setManualShareSummary(null)}
+                className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label={shareText.closeManualShare}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-600">
+              {shareText.manualShareHelp}
+            </p>
+            <textarea
+              readOnly
+              value={manualShareSummary}
+              onClick={e => (e.target as HTMLTextAreaElement).select()}
+              rows={10}
+              className="w-full p-3 rounded-xl border-2 border-slate-300 font-mono text-xs bg-slate-50 text-slate-900 focus:outline-none focus:border-slate-900 select-all"
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setManualShareSummary(null)}
+                className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold min-h-[44px]"
+              >
+                {shareText.closeManualShare}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

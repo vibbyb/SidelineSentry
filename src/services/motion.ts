@@ -42,17 +42,22 @@ export class HardwareMotionProvider implements IMotionProvider {
     let rawY: number | null = null;
     let rawZ: number | null = null;
 
-    if (event.accelerationIncludingGravity && event.accelerationIncludingGravity.x !== null) {
-      rawX = event.accelerationIncludingGravity.x || 0;
-      rawY = event.accelerationIncludingGravity.y || 0;
-      rawZ = event.accelerationIncludingGravity.z || 0;
-    } else if (event.acceleration && event.acceleration.x !== null) {
-      rawX = event.acceleration.x || 0;
-      rawY = event.acceleration.y || 0;
-      rawZ = event.acceleration.z || 0;
+    const accelGrav = event.accelerationIncludingGravity;
+    const accel = event.acceleration;
+
+    if (accelGrav && accelGrav.x != null && accelGrav.y != null && accelGrav.z != null) {
+      rawX = Number(accelGrav.x) || 0;
+      rawY = Number(accelGrav.y) || 0;
+      rawZ = Number(accelGrav.z) || 0;
+    } else if (accel && accel.x != null && accel.y != null && accel.z != null) {
+      rawX = Number(accel.x) || 0;
+      rawY = Number(accel.y) || 0;
+      rawZ = Number(accel.z) || 0;
     } else {
       return;
     }
+
+    if (!Number.isFinite(rawX) || !Number.isFinite(rawY) || !Number.isFinite(rawZ)) return;
 
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     let dt = 0.01667; // Default ~60Hz
@@ -125,12 +130,12 @@ export class SimulatedMotionProvider implements IMotionProvider {
   private active = false;
   private timerId: number | null = null;
   private callback: MotionCallback | null = null;
-  private profile: 'healthy' | 'concussed' = 'concussed';
+  private profile: 'healthy' | 'concussed' = 'healthy';
   private ringBuffer = new RingBuffer(128);
   private phase = 0;
   private perturbation = 0;
 
-  constructor(initialProfile: 'healthy' | 'concussed' = 'concussed') {
+  constructor(initialProfile: 'healthy' | 'concussed' = 'healthy') {
     this.profile = initialProfile;
   }
 
@@ -144,6 +149,10 @@ export class SimulatedMotionProvider implements IMotionProvider {
 
   public isRunning(): boolean {
     return this.active;
+  }
+
+  public getSimulationProfile(): 'healthy' | 'concussed' {
+    return this.profile;
   }
 
   public setSimulationProfile(profile: 'healthy' | 'concussed'): void {
@@ -218,8 +227,14 @@ export class SimulatedMotionProvider implements IMotionProvider {
   }
 }
 
-// Returns hardware provider on mobile or simulation on desktop
-export function createMotionProvider(preferredProfile: 'healthy' | 'concussed' = 'concussed'): IMotionProvider {
+// Returns hardware provider on mobile or simulation on desktop, unless forceSimulated is requested
+export function createMotionProvider(
+  preferredProfile: 'healthy' | 'concussed' = 'healthy',
+  options?: { forceSimulated?: boolean }
+): IMotionProvider {
+  if (options?.forceSimulated) {
+    return new SimulatedMotionProvider(preferredProfile);
+  }
   if (isMobileDevice()) {
     return new HardwareMotionProvider();
   }
@@ -229,7 +244,10 @@ export function createMotionProvider(preferredProfile: 'healthy' | 'concussed' =
 // Simple compatibility alias for tests and components
 export const MotionProviderFactory = {
   isMobileDevice,
-  createDefaultProvider: createMotionProvider,
+  createDefaultProvider: (
+    preferredProfile: 'healthy' | 'concussed' = 'healthy',
+    options?: { forceSimulated?: boolean }
+  ) => createMotionProvider(preferredProfile, options),
   getHardwareProvider: () => new HardwareMotionProvider(),
-  getSimulatedProvider: (profile: 'healthy' | 'concussed' = 'concussed') => new SimulatedMotionProvider(profile)
+  getSimulatedProvider: (profile: 'healthy' | 'concussed' = 'healthy') => new SimulatedMotionProvider(profile)
 };

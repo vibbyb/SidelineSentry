@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle2, ChevronRight, Plus, Minus } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Plus, Minus, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
 import { playTestStart, playTestComplete, warmAudioContext } from '../services/audio';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
+import { TEST_ASSIST_TEXT } from '../i18n/testAssist';
+import { isVoiceSupported, getVoiceEnabled, setVoiceEnabled, cancelVoice, speakInstruction } from '../services/speech';
 
 interface KingDevickTestProps {
   baselineSeconds?: number;
@@ -17,7 +19,6 @@ interface KingDevickTestProps {
   lang?: SupportedLocale;
 }
 
-// Standardized 5x5 Number Cards
 const PLATES = [
   {
     id: 1,
@@ -63,10 +64,14 @@ const PLATES = [
 export const KingDevickTest: React.FC<KingDevickTestProps> = ({
   baselineSeconds = 42.0,
   onComplete,
+  onCancel,
   lang = 'en'
 }) => {
   const t = TRANSLATIONS[lang];
+  const testAssist = TEST_ASSIST_TEXT[lang];
   const [phase, setPhase] = useState<'intro' | 'testing' | 'complete'>('intro');
+  const [voiceSupported] = useState<boolean>(() => isVoiceSupported());
+  const [voiceEnabled, setVoiceEnabledState] = useState<boolean>(() => getVoiceEnabled());
   const [plateIndex, setPlateIndex] = useState<number>(0);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [errorsCount, setErrorsCount] = useState<number>(0);
@@ -76,9 +81,35 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
   const cardStartTimeRef = useRef<number>(0);
   const lastTapTimeRef = useRef<number>(0);
   const timerRef = useRef<number | null>(null);
+  const completedRef = useRef<boolean>(false);
+  const hasSpokenIntroRef = useRef<boolean>(false);
+
+  // Setup instructions speech
+  useEffect(() => {
+    if (phase === 'intro' && voiceEnabled && !hasSpokenIntroRef.current) {
+      hasSpokenIntroRef.current = true;
+      speakInstruction(testAssist.kingDevickInstructionVoice, lang);
+    }
+  }, [phase, voiceEnabled, lang, testAssist.kingDevickInstructionVoice]);
+
+  const handleToggleVoice = () => {
+    const next = !voiceEnabled;
+    setVoiceEnabled(next);
+    setVoiceEnabledState(next);
+    if (next && phase === 'intro') {
+      hasSpokenIntroRef.current = true;
+      speakInstruction(testAssist.kingDevickInstructionVoice, lang);
+    }
+  };
 
   const startTest = () => {
+    cancelVoice();
     warmAudioContext();
+    if (timerRef.current !== null) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    completedRef.current = false;
     setPhase('testing');
     setPlateIndex(0);
     setErrorsCount(0);
@@ -98,7 +129,6 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
 
   const handleNextPlate = () => {
     const now = performance.now();
-    // 400ms transition debounce to prevent accidental double-tap card skipping
     if (now - lastTapTimeRef.current < 400) return;
     lastTapTimeRef.current = now;
 
@@ -110,8 +140,14 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
     if (plateIndex < PLATES.length - 1) {
       setPlateIndex(prev => prev + 1);
     } else {
-      // Completed all 3 plates
-      if (timerRef.current !== null) clearInterval(timerRef.current);
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (completedRef.current) return;
+      completedRef.current = true;
+
+      cancelVoice();
       const totalSeconds = Number(((now - startTimeRef.current) / 1000).toFixed(1));
       setElapsedSeconds(totalSeconds);
       setPhase('complete');
@@ -123,27 +159,34 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
         completed: true,
         cardSplits: updatedSplits,
         valid: totalSeconds >= 12.0,
-        validityReason:
-          totalSeconds < 12.0
-            ? (lang === 'es'
-                ? 'Lectura completada anormalmente rápido (<12.0s). El atleta debe leer todos los dígitos en voz alta.'
-                : 'Reading completed unnaturally fast (<12.0s). Athlete must read all digits aloud.')
-            : undefined
+        validityReason: totalSeconds < 12.0 ? t.readingTooFast : undefined
       });
     }
   };
 
   useEffect(() => {
     return () => {
-      if (timerRef.current !== null) clearInterval(timerRef.current);
+      cancelVoice();
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
   }, []);
+
+  const handleCancel = () => {
+    cancelVoice();
+    if (timerRef.current !== null) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    onCancel();
+  };
 
   const currentPlate = PLATES[plateIndex];
 
   return (
     <div className="bg-white border border-slate-300 rounded-xl p-6 shadow-sm relative overflow-hidden">
-      {/* Header Strip */}
       <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl mb-4 shadow-xs">
         <div>
           <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
@@ -151,25 +194,40 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
           </span>
           <h2 className="text-sm font-extrabold tracking-tight">{t.kdTitle}</h2>
         </div>
-        {baselineSeconds > 0 && (
-          <div className="text-right">
-            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">
-              {t.preseasonTarget || (lang === 'es' ? 'Meta de Pretemporada' : 'Preseason Target')}
-            </span>
-            <span className="font-mono text-xs font-black text-indigo-400 tabular-nums">
-              {baselineSeconds.toFixed(1)} s
-            </span>
-          </div>
-        )}
+        <div className="flex items-center space-x-3">
+          {voiceSupported && (
+            <button
+              type="button"
+              onClick={handleToggleVoice}
+              aria-label={voiceEnabled ? testAssist.voiceGuidanceDisable : testAssist.voiceGuidanceEnable}
+              aria-pressed={voiceEnabled}
+              className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border transition ${
+                voiceEnabled
+                  ? 'bg-blue-600 border-blue-400 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+              }`}
+            >
+              {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+            </button>
+          )}
+          {baselineSeconds > 0 && (
+            <div className="text-right">
+              <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">
+                {t.preseasonTarget}
+              </span>
+              <span className="font-mono text-xs font-black text-indigo-400 tabular-nums">
+                {baselineSeconds.toFixed(1)} s
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {phase === 'intro' && (
         <div className="space-y-4 py-4">
           <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-950 leading-relaxed font-medium shadow-sm">
-            <strong className="text-blue-950 font-bold">{lang === 'es' ? 'Instrucciones:' : 'Instructions:'}</strong>{' '}
-            {lang === 'es'
-              ? 'Indique al atleta que lea los números de izquierda a derecha, línea por línea, tan rápido como pueda sin cometer errores. Toque "Siguiente Tarjeta" tan pronto termine cada tarjeta.'
-              : 'Tell the athlete to read the numbers from left-to-right, line-by-line as fast as they can without mistakes. Tap "Next Card" as soon as they finish each card.'}
+            <strong className="text-blue-950 font-bold">{t.kdInstructions}</strong>{' '}
+            {t.kdInstructionsText}
           </div>
 
           <div className="flex justify-center pt-4">
@@ -185,11 +243,10 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
 
       {phase === 'testing' && (
         <div>
-          {/* Status Bar */}
           <div className="flex items-center justify-between mb-4 px-2">
             <div className="flex items-center space-x-2">
               <span className="text-xs font-bold text-indigo-700">
-                {lang === 'es' ? `Tarjeta ${plateIndex + 1} de 3` : `Card ${plateIndex + 1} of 3`}
+                {t.cardOf.replace('{current}', String(plateIndex + 1))}
               </span>
               <span className="text-xs text-slate-600 font-medium">
                 ({lang === 'es' ? currentPlate.titleEs : currentPlate.title})
@@ -205,8 +262,8 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
                     type="button"
                     onClick={() => setErrorsCount(prev => Math.max(0, prev - 1))}
                     className="min-h-[44px] min-w-[44px] rounded-lg bg-white hover:bg-red-100 border border-red-300 flex items-center justify-center p-2.5 text-red-700 transition ml-1"
-                    title={lang === 'es' ? 'Deshacer error' : 'Undo mistake'}
-                    aria-label={lang === 'es' ? 'Deshacer error' : 'Undo mistake'}
+                    title={t.undoMistakeLabel}
+                    aria-label={t.undoMistakeLabel}
                   >
                     <Minus className="w-4 h-4 stroke-[2.5]" />
                   </button>
@@ -218,7 +275,6 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
             </div>
           </div>
 
-          {/* Number Card: High-Contrast Athletic Paper Plate */}
           <div className="bg-white border-2 border-slate-900 rounded-xl p-4 sm:p-6 mb-4 shadow-sm relative overflow-hidden">
             <div className="space-y-3 sm:space-y-4">
               {currentPlate.rows.map((row, rowIdx) => (
@@ -239,7 +295,6 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
             </div>
           </div>
 
-          {/* Dual Thumb Action Bar */}
           <div className="grid grid-cols-2 gap-3 pt-1">
             <button
               type="button"
@@ -247,7 +302,7 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
               className="flex items-center justify-center space-x-2 py-3.5 px-2 rounded-xl bg-red-50 hover:bg-red-100 border-2 border-red-300 text-red-800 font-bold text-xs transition active:scale-95 min-h-[48px]"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>{lang === 'es' ? 'Registrar Error' : 'Log Reading Mistake'} ({errorsCount})</span>
+              <span>{t.logMistakeAction} ({errorsCount})</span>
             </button>
             <button
               type="button"
@@ -265,19 +320,19 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
         <div className="py-6 text-center">
           <CheckCircle2 className="w-10 h-10 text-indigo-700 mx-auto mb-2" />
           <h3 className="text-base font-bold text-slate-900">
-            {lang === 'es' ? 'Prueba de Rastreo Ocular Completa' : 'Eye Tracking Test Complete'}
+            {t.eyeTrackingCompleteTitle}
           </h3>
           <p className="text-xs text-slate-600 mt-1 font-medium">
-            {lang === 'es'
-              ? `Tiempo Total de Lectura: ${elapsedSeconds.toFixed(1)}s | Errores: ${errorsCount}`
-              : `Total Reading Time: ${elapsedSeconds.toFixed(1)}s | Errors: ${errorsCount}`}
+            {t.kdTotalSummary
+              .replace('{time}', elapsedSeconds.toFixed(1))
+              .replace('{errors}', String(errorsCount))}
           </p>
           {cardSplits.length > 0 && (
             <div className="mt-4 grid grid-cols-3 gap-2 max-w-xs mx-auto">
               {cardSplits.map((split, i) => (
                 <div key={i} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-center shadow-xs">
                   <div className="text-[9px] uppercase font-bold text-slate-500">
-                    {lang === 'es' ? `Tarjeta ${i + 1}` : `Card ${i + 1}`}
+                    {t.cardOf.replace('{current}', String(i + 1)).split(' ')[0]} {i + 1}
                   </div>
                   <div className="font-mono text-sm font-black text-indigo-900 tabular-nums mt-0.5">{split.toFixed(1)}s</div>
                 </div>
@@ -286,6 +341,17 @@ export const KingDevickTest: React.FC<KingDevickTestProps> = ({
           )}
         </div>
       )}
+
+      <div className="flex items-center justify-between pt-3 mt-4 border-t border-slate-200">
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition min-h-[44px]"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>{t.cancelScreening}</span>
+        </button>
+      </div>
     </div>
   );
 };

@@ -9,8 +9,8 @@ export const TRANSLATIONS = {
     ...REPORT_AND_FLOW_TRANSLATIONS.en,
     // Header & Navigation
     appTitle: 'SidelineSentry',
-    appSubtitle: 'High School Sideline Concussion Protocol',
-    offlineBadge: 'Offline Ready (0 Cloud Calls)',
+    appSubtitle: 'High School Sideline Concussion Safety Check',
+    offlineBadge: 'Works offline',
     simProfileHealthy: 'Healthy',
     simProfileConcussed: 'Concussed',
     simulateDemo: 'Simulate Demo',
@@ -20,7 +20,7 @@ export const TRANSLATIONS = {
     tabReports: 'Reports',
 
     // Roster
-    rosterTitle: 'Athletic Roster & Sideline Triage',
+    rosterTitle: 'Athletic Roster & Sideline Safety Check',
     rosterSubtitle: 'Select an athlete to start an immediate 4-step sideline safety check.',
     searchPlaceholder: 'Search athlete, jersey #...',
     addAthlete: 'Add Athlete Baseline',
@@ -29,20 +29,20 @@ export const TRANSLATIONS = {
     noHistory: 'No Prior Incidents',
     swayRms: 'Sway (RMS)',
     reaction: 'Reaction',
-    kdClock: 'Eye Tracking',
+    kdClock: 'Reading Test',
 
     // Stepper
     stepRedFlags: 'Test 1: Emergency Check',
     stepBalance: 'Test 2: Balance Test',
     stepReaction: 'Test 3: Reaction Test',
-    stepKingDevick: 'Test 4: Eye & Reading Test',
+    stepKingDevick: 'Test 4: Reading Test',
     cancelScreening: 'Cancel Check',
 
     // Red Flags Checklist (Test 1)
     redFlagsTitle: 'Test 1: Emergency Warning Signs',
     redFlagsDesc: 'If the athlete has any of these serious signs, do not do any physical tests. Keep them still and get medical help or call 911 right away.',
-    emergencyTriggered: 'EMERGENCY WARNING',
-    emergencyLockdownWarning: 'EMERGENCY STOP: The athlete showed a serious warning sign. Keep them still, do NOT let them play, and call for medical help immediately.',
+    emergencyTriggered: 'Emergency Warning',
+    emergencyLockdownWarning: 'Emergency stop: The athlete showed a serious warning sign. Keep them still, do not let them play, and call for medical help immediately.',
     call911: 'Call 911 / Get Help',
     lockdownProceed: 'Open Emergency Report',
     proceedToBalance: 'Continue to Test 2 (Balance)',
@@ -83,7 +83,7 @@ export const TRANSLATIONS = {
     balanceTitle: 'Test 2: Balance Test',
     balanceSubtitle: '15-Second Balance Stance',
     balanceInstruction: 'Have the athlete stand straight with feet together, hands on hips, and eyes closed. Hold the phone flat against their chest. Listen for the sound cues.',
-    startBalanceTest: 'START 15-SECOND TEST',
+    startBalanceTest: 'Start 15-Second Test',
     timeRemaining: 'Time Remaining',
     liveStability: 'Live Stability',
     simulatePerturbation: 'Simulate Loss of Balance (Movement Spike)',
@@ -95,14 +95,14 @@ export const TRANSLATIONS = {
     reactionTitle: 'Test 3: Reaction Test',
     reactionSubtitle: 'Tap the screen as soon as it turns green',
     waitForGreen: 'Wait for green...',
-    tapNow: 'TAP NOW!',
+    tapNow: 'Tap now',
     startTrial: 'Start Trial',
     nextTrial: 'Start Next Trial',
 
-    // Eye & Reading Test (Test 4)
-    kdTitle: 'Test 4: Eye & Reading Test',
+    // Reading Test (Test 4)
+    kdTitle: 'Test 4: Reading Test',
     kdSubtitle: 'Read the numbers out loud as fast as you can',
-    startKdClock: 'Start Eye Test',
+    startKdClock: 'Start Reading Test',
     nextPlate: 'Next Card',
     finishTest: 'Finish Test',
     errorsLabel: 'Mistakes:',
@@ -111,7 +111,7 @@ export const TRANSLATIONS = {
     verdictRemoval: 'SIT THEM OUT (DO NOT RETURN TODAY)',
     verdictCaution: 'NEEDS FURTHER CHECKUP',
     verdictClear: 'SCORES LOOK NORMAL',
-    verdictInvalid: 'TEST WAS INTERRUPTED (TRY AGAIN)',
+    verdictInvalid: 'Test was interrupted (try again)',
     verdictRemovalDesc: 'The athlete showed serious warning signs or noticeable score drops. Keep them out of sports today and have a doctor or athletic trainer evaluate them.',
     verdictCautionDesc: 'Scores were slightly off from their baseline. Wait 15 minutes, re-test, and have an athletic trainer check them before making any return decision.',
     verdictClearDesc: 'Post-impact scores matched their preseason baseline. Continue watching the athlete for any delayed headaches, dizziness, or confusion.',
@@ -124,7 +124,7 @@ export const TRANSLATIONS = {
     // Clinician & Parent Report
     packetTitle: 'Sideline Summary & Doctor Report',
     copyText: 'Copy Summary',
-    copied: 'Copied!',
+    copied: 'Copied',
     printPdf: 'Print / Save PDF',
     exportJson: 'Export JSON',
     evaluatorNotes: 'Notes & What Happened on the Field',
@@ -134,7 +134,7 @@ export const TRANSLATIONS = {
     licenseNumber: 'School / Certification ID #',
     signatureLabel: 'Sign on Screen',
     clearSig: 'Clear Signature',
-    sessionHash: 'Record Verification Code (SHA-256)',
+    sessionHash: 'Report check code',
     parentInstructionsTitle: 'Important Instructions for Parents & Caregivers',
     parentInstructionsText: 'If your child has a worsening headache, throws up, or acts confused, take them to the Emergency Room right away. Do not let them return to sports or hard workouts until cleared by a doctor.'
   },
@@ -142,8 +142,8 @@ export const TRANSLATIONS = {
     ...REPORT_AND_FLOW_TRANSLATIONS.es,
     // Header & Navigation
     appTitle: 'SidelineSentry',
-    appSubtitle: 'Protocolo de Campo para Conmoción Cerebral',
-    offlineBadge: 'Listo Sin Conexión (0 Llamadas en Nube)',
+    appSubtitle: 'Chequeo de Campo para Conmoción Cerebral',
+    offlineBadge: 'Funciona sin conexión',
     simProfileHealthy: 'Saludable',
     simProfileConcussed: 'Conmocionado',
     simulateDemo: 'Simular Demostración',
@@ -162,20 +162,20 @@ export const TRANSLATIONS = {
     noHistory: 'Sin Incidentes Previos',
     swayRms: 'Oscilación (RMS)',
     reaction: 'Reacción',
-    kdClock: 'Rastreo Ocular',
+    kdClock: 'Prueba de Lectura',
 
     // Stepper
     stepRedFlags: 'Prueba 1: Señales de Alarma',
     stepBalance: 'Prueba 2: Equilibrio',
     stepReaction: 'Prueba 3: Reacción',
-    stepKingDevick: 'Prueba 4: Vista y Lectura',
+    stepKingDevick: 'Prueba 4: Lectura',
     cancelScreening: 'Cancelar Chequeo',
 
     // Red Flags Checklist (Test 1)
     redFlagsTitle: 'Prueba 1: Señales de Alarma de Emergencia',
     redFlagsDesc: 'Si el atleta presenta alguna de estas señales graves, no haga pruebas físicas. Manténgalo quieto y llame al 911 o busque ayuda médica de inmediato.',
-    emergencyTriggered: 'ALERTA DE EMERGENCIA',
-    emergencyLockdownWarning: 'PARADA DE EMERGENCIA: El atleta mostró una señal de alarma grave. Manténgalo quieto, NO lo deje jugar y busque atención médica de inmediato.',
+    emergencyTriggered: 'Alerta de emergencia',
+    emergencyLockdownWarning: 'Parada de emergencia: El atleta mostró una señal de alarma grave. Manténgalo quieto, no lo deje jugar y busque atención médica de inmediato.',
     call911: 'Llamar al 911 / Pedir Ayuda',
     lockdownProceed: 'Abrir Informe de Emergencia',
     proceedToBalance: 'Continuar a Prueba 2 (Equilibrio)',
@@ -216,7 +216,7 @@ export const TRANSLATIONS = {
     balanceTitle: 'Prueba 2: Prueba de Equilibrio',
     balanceSubtitle: 'Prueba de 15 Segundos',
     balanceInstruction: 'Coloque al atleta de pie con pies juntos, manos en caderas y ojos cerrados. Mantenga el teléfono plano sobre el pecho. Escuche las señales de sonido.',
-    startBalanceTest: 'INICIAR PRUEBA DE 15 SEGUNDOS',
+    startBalanceTest: 'Iniciar prueba de 15 segundos',
     timeRemaining: 'Tiempo Restante',
     liveStability: 'Estabilidad en Vivo',
     simulatePerturbation: 'Simular Pérdida de Equilibrio (Pico de Movimiento)',
@@ -228,14 +228,14 @@ export const TRANSLATIONS = {
     reactionTitle: 'Prueba 3: Prueba de Reacción',
     reactionSubtitle: 'Toque la pantalla en cuanto cambie a color verde',
     waitForGreen: 'Espere la luz verde...',
-    tapNow: '¡TOQUE AHORA!',
+    tapNow: 'Toque ahora',
     startTrial: 'Iniciar Intento',
     nextTrial: 'Iniciar Siguiente Intento',
 
-    // Eye & Reading Test (Test 4)
-    kdTitle: 'Prueba 4: Prueba de Vista y Lectura',
+    // Reading Test (Test 4)
+    kdTitle: 'Prueba 4: Prueba de Lectura',
     kdSubtitle: 'Lea los números en voz alta tan rápido como pueda',
-    startKdClock: 'Iniciar Prueba',
+    startKdClock: 'Iniciar Prueba de Lectura',
     nextPlate: 'Siguiente Tarjeta',
     finishTest: 'Finalizar Prueba',
     errorsLabel: 'Errores:',
@@ -244,7 +244,7 @@ export const TRANSLATIONS = {
     verdictRemoval: 'DEBE SALIR DEL JUEGO (NO JUGAR HOY)',
     verdictCaution: 'NECESITA REVISIÓN ADICIONAL',
     verdictClear: 'LOS RESULTADOS SE VEN NORMALES',
-    verdictInvalid: 'PRUEBA INTERRUMPIDA (REPETIR)',
+    verdictInvalid: 'Prueba interrumpida (repetir)',
     verdictRemovalDesc: 'El atleta mostró señales de alarma o cambios notorios en sus puntajes. No debe regresar a jugar hoy y debe ser evaluado por un médico o entrenador deportivo.',
     verdictCautionDesc: 'Los puntajes variaron ligeramente de su línea base. Espere 15 minutos, repita la prueba y consulte a un entrenador antes de cualquier decisión.',
     verdictClearDesc: 'Los puntajes coincidieron con su línea base de pretemporada. Continúe observando si aparecen dolores de cabeza o mareos más tarde.',
@@ -257,7 +257,7 @@ export const TRANSLATIONS = {
     // Clinician & Parent Report
     packetTitle: 'Resumen de Campo e Informe Médico',
     copyText: 'Copiar Resumen',
-    copied: '¡Copiado!',
+    copied: 'Copiado',
     printPdf: 'Imprimir / Guardar PDF',
     exportJson: 'Exportar JSON',
     evaluatorNotes: 'Notas y lo que ocurrió en el campo',
@@ -267,7 +267,7 @@ export const TRANSLATIONS = {
     licenseNumber: 'ID de Escuela / Certificación #',
     signatureLabel: 'Firme en Pantalla',
     clearSig: 'Borrar Firma',
-    sessionHash: 'Código de Verificación (SHA-256)',
+    sessionHash: 'Código de verificación del reporte',
     parentInstructionsTitle: 'Instrucciones Importantes para Padres y Cuidadores',
     parentInstructionsText: 'Si su hijo presenta dolor de cabeza que empeora, vómitos repetidos o confusión, llévelo de inmediato a Urgencias. No permita que regrese a entrenar hasta que un médico lo autorice.'
   }

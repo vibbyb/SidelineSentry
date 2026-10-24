@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { playTestStart, playFalseStartBuzz, playTestComplete, warmAudioContext } from '../services/audio';
 import { auditReactionTrials } from '../services/scoring';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
+import { TEST_ASSIST_TEXT } from '../i18n/testAssist';
+import { isVoiceSupported, getVoiceEnabled, setVoiceEnabled, cancelVoice, speakInstruction } from '../services/speech';
 
 interface ReactionTestProps {
   baselineMs?: number;
@@ -22,10 +24,14 @@ interface ReactionTestProps {
 export const ReactionTest: React.FC<ReactionTestProps> = ({
   baselineMs = 230,
   onComplete,
+  onCancel,
   lang = 'en'
 }) => {
   const t = TRANSLATIONS[lang];
+  const testAssist = TEST_ASSIST_TEXT[lang];
   const [phase, setPhase] = useState<'idle' | 'waiting' | 'ready_to_tap' | 'trial_done' | 'complete'>('idle');
+  const [voiceSupported] = useState<boolean>(() => isVoiceSupported());
+  const [voiceEnabled, setVoiceEnabledState] = useState<boolean>(() => getVoiceEnabled());
   const [currentTrial, setCurrentTrial] = useState<number>(1);
   const [trials, setTrials] = useState<number[]>([]);
   const [falseStarts, setFalseStarts] = useState<number>(0);
@@ -41,15 +47,42 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
 
   const startTimeRef = useRef<number>(0);
   const timerTimeoutRef = useRef<number | null>(null);
+  const tapResetTimeoutRef = useRef<number | null>(null);
   const isProcessingTapRef = useRef<boolean>(false);
+  const completedRef = useRef<boolean>(false);
+  const hasSpokenSetupRef = useRef<boolean>(false);
+
+  // Setup instructions speech
+  useEffect(() => {
+    if (phase === 'idle' && voiceEnabled && !hasSpokenSetupRef.current) {
+      hasSpokenSetupRef.current = true;
+      speakInstruction(testAssist.reactionInstructionVoice, lang);
+    }
+  }, [phase, voiceEnabled, lang, testAssist.reactionInstructionVoice]);
+
+  const handleToggleVoice = () => {
+    const next = !voiceEnabled;
+    setVoiceEnabled(next);
+    setVoiceEnabledState(next);
+    if (next && phase === 'idle') {
+      hasSpokenSetupRef.current = true;
+      speakInstruction(testAssist.reactionInstructionVoice, lang);
+    }
+  };
 
   const startTrial = () => {
+    cancelVoice();
     isProcessingTapRef.current = false;
     warmAudioContext();
     setPhase('waiting');
     setFeedbackMessage('');
 
-    // Randomized delay 1500ms to 3500ms to eliminate rhythm anticipation
+    if (timerTimeoutRef.current !== null) {
+      clearTimeout(timerTimeoutRef.current);
+      timerTimeoutRef.current = null;
+    }
+
+    // Randomized delay 1500ms to 3500ms to prevent rhythm guessing
     const randomDelay = Math.floor(Math.random() * 2000) + 1500;
 
     timerTimeoutRef.current = window.setTimeout(() => {
@@ -64,19 +97,17 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
     isProcessingTapRef.current = true;
 
     if (phaseRef.current === 'waiting') {
-      // False start / Anticipatory tap before green stimulus
       if (timerTimeoutRef.current !== null) {
         clearTimeout(timerTimeoutRef.current);
+        timerTimeoutRef.current = null;
       }
       playFalseStartBuzz();
       setFalseStarts(prev => prev + 1);
-      setFeedbackMessage(
-        lang === 'es'
-          ? '¡Demasiado pronto! Tocó antes de que la pantalla se pusiera verde. Reiniciando intento...'
-          : 'Too early! You tapped before the screen turned green. Resetting trial...'
-      );
+      setFeedbackMessage(t.reactionTooEarly);
       setPhase('idle');
-      setTimeout(() => {
+
+      if (tapResetTimeoutRef.current !== null) clearTimeout(tapResetTimeoutRef.current);
+      tapResetTimeoutRef.current = window.setTimeout(() => {
         isProcessingTapRef.current = false;
       }, 150);
       return;
@@ -94,13 +125,11 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
       if (elapsed < 150) {
         playFalseStartBuzz();
         setFalseStarts(prev => prev + 1);
-        setFeedbackMessage(
-          lang === 'es'
-            ? `¡Demasiado rápido! El toque fue de ${elapsed}ms (límite de reacción humana es 150ms). Reiniciando intento...`
-            : `Too fast! Tap was ${elapsed}ms (human reaction limit is 150ms). Resetting trial...`
-        );
+        setFeedbackMessage(t.reactionTooFast.replace('{ms}', String(elapsed)));
         setPhase('idle');
-        setTimeout(() => {
+
+        if (tapResetTimeoutRef.current !== null) clearTimeout(tapResetTimeoutRef.current);
+        tapResetTimeoutRef.current = window.setTimeout(() => {
           isProcessingTapRef.current = false;
         }, 150);
         return;
@@ -110,7 +139,10 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
       setTrials(updatedTrials);
 
       if (updatedTrials.length >= 3) {
-        // Test complete
+        if (completedRef.current) return;
+        completedRef.current = true;
+
+        cancelVoice();
         setPhase('complete');
         playTestComplete();
 
@@ -133,7 +165,8 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
         setCurrentTrial(prev => prev + 1);
       }
 
-      setTimeout(() => {
+      if (tapResetTimeoutRef.current !== null) clearTimeout(tapResetTimeoutRef.current);
+      tapResetTimeoutRef.current = window.setTimeout(() => {
         isProcessingTapRef.current = false;
       }, 150);
     } else {
@@ -143,11 +176,32 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
 
   useEffect(() => {
     return () => {
-      if (timerTimeoutRef.current !== null) clearTimeout(timerTimeoutRef.current);
+      cancelVoice();
+      if (timerTimeoutRef.current !== null) {
+        clearTimeout(timerTimeoutRef.current);
+        timerTimeoutRef.current = null;
+      }
+      if (tapResetTimeoutRef.current !== null) {
+        clearTimeout(tapResetTimeoutRef.current);
+        tapResetTimeoutRef.current = null;
+      }
     };
   }, []);
 
-  // Test helper for simulated tap in automated tests
+  const handleCancel = () => {
+    cancelVoice();
+    if (timerTimeoutRef.current !== null) {
+      clearTimeout(timerTimeoutRef.current);
+      timerTimeoutRef.current = null;
+    }
+    if (tapResetTimeoutRef.current !== null) {
+      clearTimeout(tapResetTimeoutRef.current);
+      tapResetTimeoutRef.current = null;
+    }
+    onCancel();
+  };
+
+  // Test helper for automated testing suites
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as unknown as { __triggerSidelineReactionTap?: (customMs?: number) => void }).__triggerSidelineReactionTap = (customMs?: number) => {
@@ -168,7 +222,6 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
 
   return (
     <div className="bg-white border border-slate-300 rounded-xl p-6 shadow-sm relative overflow-hidden">
-      {/* Header Strip */}
       <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl mb-4 shadow-xs">
         <div>
           <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
@@ -176,19 +229,35 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
           </span>
           <h2 className="text-sm font-extrabold tracking-tight">{t.reactionTitle}</h2>
         </div>
-        {baselineMs > 0 && (
-          <div className="text-right">
-            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">
-              {t.preseasonTarget || (lang === 'es' ? 'Meta de Pretemporada' : 'Preseason Target')}
-            </span>
-            <span className="font-mono text-xs font-black text-blue-400 tabular-nums">
-              {baselineMs} ms
-            </span>
-          </div>
-        )}
+        <div className="flex items-center space-x-3">
+          {voiceSupported && (
+            <button
+              type="button"
+              onClick={handleToggleVoice}
+              aria-label={voiceEnabled ? testAssist.voiceGuidanceDisable : testAssist.voiceGuidanceEnable}
+              aria-pressed={voiceEnabled}
+              className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border transition ${
+                voiceEnabled
+                  ? 'bg-blue-600 border-blue-400 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+              }`}
+            >
+              {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+            </button>
+          )}
+          {baselineMs > 0 && (
+            <div className="text-right">
+              <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">
+                {t.preseasonTarget}
+              </span>
+              <span className="font-mono text-xs font-black text-blue-400 tabular-nums">
+                {baselineMs} ms
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Trial Counter & Status */}
       <div className="flex items-center justify-between mb-4 px-2">
         <div className="flex items-center space-x-2">
           {[1, 2, 3].map(num => (
@@ -206,14 +275,14 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
             </div>
           ))}
           <span className="text-xs text-slate-600 ml-2 font-medium">
-            {lang === 'es' ? `Intento ${Math.min(currentTrial, 3)} de 3` : `Trial ${Math.min(currentTrial, 3)} of 3`}
+            {t.trialProgress.replace('{current}', String(Math.min(currentTrial, 3)))}
           </span>
         </div>
 
         {falseStarts > 0 && (
           <div className="flex items-center space-x-1 text-xs text-amber-800 font-bold">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-            <span>{lang === 'es' ? 'Toques Anticipados' : 'False Starts'}: {falseStarts}</span>
+            <span>{t.falseStartsLabel}: {falseStarts}</span>
           </div>
         )}
       </div>
@@ -224,23 +293,19 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
         </div>
       )}
 
-      {/* Visually-hidden live region for screen-reader stimulus alert */}
       <div className="sr-only" aria-live="assertive" aria-atomic="true">
-        {phase === 'ready_to_tap'
-          ? (lang === 'es' ? '¡Verde! Toque la pantalla ahora.' : 'Green! Tap screen now.')
-          : ''}
+        {phase === 'ready_to_tap' ? t.screenReaderGreenAlert : ''}
       </div>
 
-      {/* Tap Target Zone */}
       <div
         role="button"
         tabIndex={0}
         aria-label={
           phase === 'ready_to_tap'
-            ? (lang === 'es' ? '¡Verde! Toque ahora en la pantalla' : 'Green! Tap anywhere on screen')
+            ? t.ariaTapGreen
             : phase === 'waiting'
-            ? (lang === 'es' ? 'Esperando luz verde. No toque todavía.' : 'Waiting for green. Do not tap yet.')
-            : (lang === 'es' ? 'Zona de prueba de tiempo de reacción' : 'Reaction test target zone')
+            ? t.ariaTapWaiting
+            : t.ariaTapTargetZone
         }
         onPointerDown={(e) => {
           if (phaseRef.current === 'waiting' || phaseRef.current === 'ready_to_tap') {
@@ -281,7 +346,7 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
         {phase === 'waiting' && (
           <div className="text-center">
             <div className="text-xs uppercase tracking-widest text-amber-800 font-bold mb-2">{t.waitForGreen}</div>
-            <div className="text-sm font-bold text-slate-700">{lang === 'es' ? 'NO TOQUE TODAVÍA' : 'DO NOT TAP YET'}</div>
+            <div className="text-sm font-bold text-slate-700">{t.doNotTapYetNotice}</div>
           </div>
         )}
 
@@ -289,7 +354,7 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
           <div className="text-center">
             <div className="text-4xl md:text-5xl font-black text-white tracking-tight uppercase drop-shadow">{t.tapNow}</div>
             <div className="text-xs font-bold text-emerald-100 mt-1">
-              {lang === 'es' ? 'TOQUE EN CUALQUIER LUGAR' : 'TAP ANYWHERE ON SCREEN'}
+              {t.tapAnywhereNotice}
             </div>
           </div>
         )}
@@ -297,7 +362,7 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
         {phase === 'trial_done' && (
           <div className="text-center">
             <div className="text-xs uppercase tracking-wider text-slate-600 mb-1 font-bold">
-              {lang === 'es' ? `Tiempo del Intento ${currentTrial - 1}` : `Trial ${currentTrial - 1} Time`}
+              {t.trialTimeLabel.replace('{n}', String(currentTrial - 1))}
             </div>
             <div className="text-4xl font-black font-mono text-blue-700 mb-4 tabular-nums">{lastMs} ms</div>
             <button
@@ -318,16 +383,15 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
           <div className="text-center">
             <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
             <div className="text-base font-bold text-slate-900">
-              {lang === 'es' ? 'Intentos Completados' : 'Trials Complete'}
+              {t.trialsCompleteTitle}
             </div>
             <div className="text-xs text-slate-600 mt-1 font-medium">
-              {lang === 'es' ? 'Calculando estadísticas de reacción...' : 'Computing reaction statistics...'}
+              {t.computingReactionStats}
             </div>
           </div>
         )}
       </div>
 
-      {/* Trial Results Strip with Live Baseline Delta Badges */}
       {trials.length > 0 && (
         <div className="mt-4 grid grid-cols-3 gap-3">
           {trials.map((ms, idx) => {
@@ -335,12 +399,12 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
             return (
               <div key={idx} className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center shadow-sm">
                 <div className="text-[10px] text-slate-600 uppercase font-bold">
-                  {lang === 'es' ? `Intento ${idx + 1}` : `Trial ${idx + 1}`}
+                  {t.trialResultLabel.replace('{n}', String(idx + 1))}
                 </div>
                 <div className="text-base font-bold font-mono text-slate-900 mt-0.5 tabular-nums">{ms} ms</div>
                 {baselineMs > 0 && (
                   <div className={`text-[10px] font-mono font-bold mt-0.5 ${diff > 20 ? 'text-amber-700' : 'text-emerald-700'}`}>
-                    {diff >= 0 ? `+${diff}ms` : `${diff}ms`} vs base
+                    {diff >= 0 ? `+${diff}ms` : `${diff}ms`} {t.vsBaseline}
                   </div>
                 )}
               </div>
@@ -348,6 +412,17 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
           })}
         </div>
       )}
+
+      <div className="flex items-center justify-between pt-3 mt-4 border-t border-slate-200">
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition min-h-[44px]"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>{t.cancelScreening}</span>
+        </button>
+      </div>
     </div>
   );
 };

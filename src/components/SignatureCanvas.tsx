@@ -1,11 +1,12 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { RotateCcw, PenTool } from 'lucide-react';
-import { SupportedLocale } from '../i18n/translations';
+import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
 
 interface SignatureCanvasProps {
   onChange: (signatureDataUrl: string | null) => void;
   label?: string;
   clearLabel?: string;
+  initialSignature?: string | null;
   lang?: SupportedLocale;
 }
 
@@ -13,42 +14,45 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
   onChange,
   label,
   clearLabel,
+  initialSignature,
   lang = 'en'
 }) => {
-  const isEs = lang === 'es' || clearLabel?.toLowerCase().includes('borrar') || label?.toLowerCase().includes('firmar') || label?.toLowerCase().includes('firma');
-  const displayLabel = label ?? (isEs ? 'Firma Digital del Evaluador' : 'Clinician Digital Signature');
-  const displayClearLabel = clearLabel ?? (isEs ? 'Borrar Firma' : 'Clear Signature');
-  const ariaLabel = isEs ? 'Lienzo para firma digital' : 'Digital signature canvas';
-  const helperText = isEs
-    ? 'Firme aquí con el ratón, lápiz óptico o dedo'
-    : 'Sign here with mouse, stylus, or fingertip';
+  const t = TRANSLATIONS[lang];
+  const displayLabel = label ?? t.signatureCanvasLabel;
+  const displayClearLabel = clearLabel ?? t.clearSignatureLabel;
+  const ariaLabel = t.signatureAriaLabel;
+  const helperText = t.signatureHelper;
 
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
-  const [hasDrawn, setHasDrawn] = useState<boolean>(false);
+  const [hasDrawn, setHasDrawn] = useState<boolean>(Boolean(initialSignature));
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const lastWidthRef = useRef<number>(0);
-  const hasDrawnRef = useRef<boolean>(false);
+  const hasDrawnRef = useRef<boolean>(Boolean(initialSignature));
   hasDrawnRef.current = hasDrawn;
 
   const initCanvas = useCallback((force: boolean = false) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
     if (!force && lastWidthRef.current > 0 && Math.abs(rect.width - lastWidthRef.current) < 5) {
-      // Ignore vertical-only height changes triggered by mobile virtual keyboard appearance
       return;
     }
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
     let savedData: string | null = null;
     if (canvas.width > 0 && canvas.height > 0 && hasDrawnRef.current) {
       savedData = canvas.toDataURL('image/png');
+    } else if (initialSignature && !hasDrawnRef.current) {
+      savedData = initialSignature;
     }
 
     lastWidthRef.current = rect.width;
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -57,7 +61,7 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, rect.width, rect.height);
 
-    // Subtle signature baseline guide
+    // Baseline guide for signing
     ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
@@ -74,13 +78,22 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
       };
       img.src = savedData;
     }
-  }, []);
+  }, [initialSignature]);
 
   useEffect(() => {
     initCanvas(true);
-    const handleResize = () => initCanvas(false);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') {
+      const handleResize = () => initCanvas(false);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+
+    const observer = new ResizeObserver(() => {
+      initCanvas(false);
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
   }, [initCanvas]);
 
   const getCanvasPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -88,8 +101,8 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     return {
-      x: e.clientX - rect.x,
-      y: e.clientY - rect.y
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
     };
   };
 
@@ -102,7 +115,7 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
         canvas.setPointerCapture(e.pointerId);
       }
     } catch {
-      // Ignore simulated pointer environment exceptions
+      // Safe fallback for pointer emulation
     }
 
     const pt = getCanvasPoint(e);
@@ -157,7 +170,7 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
           canvas.releasePointerCapture(e.pointerId);
         }
       } catch {
-        // Ignore synthetic release errors
+        // Safe fallback
       }
     }
     setIsDrawing(false);
@@ -186,7 +199,7 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
           <button
             type="button"
             onClick={handleClear}
-            className="flex items-center space-x-1 text-[11px] font-bold text-slate-600 hover:text-slate-900 px-2 py-0.5 rounded hover:bg-slate-100 transition"
+            className="flex items-center space-x-1 text-[11px] font-bold text-slate-600 hover:text-slate-900 px-2.5 py-1.5 rounded hover:bg-slate-100 transition min-h-[44px]"
           >
             <RotateCcw className="w-3 h-3" />
             <span>{displayClearLabel}</span>
@@ -194,7 +207,10 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
         )}
       </div>
 
-      <div className="relative w-full h-28 rounded-lg overflow-hidden border border-slate-300 bg-white focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition shadow-sm">
+      <div
+        ref={containerRef}
+        className="relative w-full h-28 rounded-lg overflow-hidden border border-slate-300 bg-white focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition shadow-sm"
+      >
         <canvas
           ref={canvasRef}
           role="img"

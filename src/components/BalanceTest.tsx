@@ -5,8 +5,10 @@ import { WaveformCanvas } from './WaveformCanvas';
 import { playCountdownPip, playTestStart, playTestComplete, warmAudioContext } from '../services/audio';
 import { auditPosturalSway } from '../services/scoring';
 import { SimulatedMotionProvider, round3 } from '../services/motion';
-import { Play, Zap, CheckCircle2, AlertTriangle, RotateCcw, ShieldAlert } from 'lucide-react';
+import { Volume2, VolumeX, Play, Zap, CheckCircle2, AlertTriangle, RotateCcw, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
+import { TEST_ASSIST_TEXT } from '../i18n/testAssist';
+import { isVoiceSupported, getVoiceEnabled, setVoiceEnabled, cancelVoice, speakInstruction } from '../services/speech';
 
 interface BalanceTestProps {
   motionProvider: IMotionProvider;
@@ -27,10 +29,14 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
   motionProvider,
   baselineSway = 0.085,
   onComplete,
+  onCancel,
   lang = 'en'
 }) => {
   const t = TRANSLATIONS[lang];
+  const testAssist = TEST_ASSIST_TEXT[lang];
   const [phase, setPhase] = useState<'idle' | 'countdown' | 'recording' | 'artifact_halted' | 'permission_denied' | 'complete'>('idle');
+  const [voiceSupported] = useState<boolean>(() => isVoiceSupported());
+  const [voiceEnabled, setVoiceEnabledState] = useState<boolean>(() => getVoiceEnabled());
   const [countdown, setCountdown] = useState<number>(3);
   const [timeLeft, setTimeLeft] = useState<number>(15);
   const [currentFrame, setCurrentFrame] = useState<MotionFrame>({
@@ -43,19 +49,59 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
   });
 
   const [simProfile, setSimProfile] = useState<'healthy' | 'concussed'>('healthy');
+  const [activeProvider, setActiveProvider] = useState<IMotionProvider>(motionProvider);
   const ringBufferRef = useRef<RingBuffer>(new RingBuffer(256));
   const swayHistoryRef = useRef<number[]>([]);
   const peakSwayRef = useRef<number>(0);
   const intervalRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
+  const completedRef = useRef<boolean>(false);
 
-  const isSimulated = motionProvider.getMode() === 'simulated';
+  const isSimulated = activeProvider.getMode() === 'simulated';
 
-  // Synchronize simulation profile with motion provider on mount and state changes
+  const hasSpokenSetupRef = useRef<boolean>(false);
+  const hasSpokenRecordingRef = useRef<boolean>(false);
+  const hasSpokenCompleteRef = useRef<boolean>(false);
+
+  // Setup instructions speech
   useEffect(() => {
-    if (isSimulated && motionProvider.setSimulationProfile) {
-      motionProvider.setSimulationProfile(simProfile);
+    if (phase === 'idle' && voiceEnabled && !hasSpokenSetupRef.current) {
+      hasSpokenSetupRef.current = true;
+      speakInstruction(testAssist.balanceInstructionVoice, lang);
     }
-  }, [isSimulated, motionProvider, simProfile]);
+  }, [phase, voiceEnabled, lang, testAssist.balanceInstructionVoice]);
+
+  // Recording start cue speech
+  useEffect(() => {
+    if (phase === 'recording' && voiceEnabled && !hasSpokenRecordingRef.current) {
+      hasSpokenRecordingRef.current = true;
+      speakInstruction(testAssist.balanceHoldStill, lang);
+    }
+  }, [phase, voiceEnabled, lang, testAssist.balanceHoldStill]);
+
+  // Completion cue speech
+  useEffect(() => {
+    if (phase === 'complete' && voiceEnabled && !hasSpokenCompleteRef.current) {
+      hasSpokenCompleteRef.current = true;
+      speakInstruction(testAssist.balanceTestComplete, lang);
+    }
+  }, [phase, voiceEnabled, lang, testAssist.balanceTestComplete]);
+
+  const handleToggleVoice = () => {
+    const next = !voiceEnabled;
+    setVoiceEnabled(next);
+    setVoiceEnabledState(next);
+    if (next && phase === 'idle') {
+      hasSpokenSetupRef.current = true;
+      speakInstruction(testAssist.balanceInstructionVoice, lang);
+    }
+  };
+
+  useEffect(() => {
+    if (isSimulated && activeProvider.setSimulationProfile) {
+      activeProvider.setSimulationProfile(simProfile);
+    }
+  }, [isSimulated, activeProvider, simProfile]);
 
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
@@ -64,7 +110,7 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
   const halftimeFiredRef = useRef<boolean>(false);
 
   const handleFrame = useCallback((frame: MotionFrame) => {
-    // Throttle UI updates to ~10Hz while buffering at full rate
+    // Throttle UI re-renders to ~10Hz while buffering samples at 60Hz
     const now = Date.now();
     if (now - lastUiUpdateRef.current >= 100) {
       lastUiUpdateRef.current = now;
@@ -74,7 +120,6 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
     const elapsedSinceStart = recordingStartTimeRef.current > 0 ? Date.now() - recordingStartTimeRef.current : 0;
     const magnitude = Math.sqrt(frame.x * frame.x + frame.z * frame.z);
 
-    // Wait 500ms for initial sensor reading to stabilize before recording
     if (elapsedSinceStart > 500 || frame.isSimulated) {
       ringBufferRef.current.push(magnitude);
       if (magnitude > peakSwayRef.current) {
@@ -82,23 +127,25 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
       }
     }
 
-    // Stop test if phone slips or sudden movement occurs (> 2.5 m/s²)
+    // Sudden movement trip threshold (> 2.5 m/s² phone slip or grip shift)
     if (phaseRef.current === 'recording' && elapsedSinceStart > 500 && magnitude > 2.5) {
+      cancelVoice();
+      phaseRef.current = 'artifact_halted';
       if (intervalRef.current !== null) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      motionProvider.stop();
+      activeProvider.stop();
       playCountdownPip();
       setPhase('artifact_halted');
       return;
     }
 
-    // Downsample recording for summary display
+    // Downsample recording history for the summary report
     if (Math.random() < 0.2) {
       swayHistoryRef.current.push(round3(frame.rms));
     }
-  }, [motionProvider]);
+  }, [activeProvider]);
 
   // Handle countdown
   useEffect(() => {
@@ -106,12 +153,17 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
 
     if (countdown > 0) {
       playCountdownPip();
-      const timer = setTimeout(() => {
+      countdownTimerRef.current = window.setTimeout(() => {
         setCountdown(prev => prev - 1);
       }, 1000);
-      return () => clearTimeout(timer);
+      return () => {
+        if (countdownTimerRef.current !== null) {
+          clearTimeout(countdownTimerRef.current);
+          countdownTimerRef.current = null;
+        }
+      };
     } else {
-      // Begin recording
+      // Start recording
       playTestStart();
       setPhase('recording');
       setTimeLeft(15);
@@ -120,9 +172,9 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
       ringBufferRef.current.reset();
       swayHistoryRef.current = [];
       peakSwayRef.current = 0;
-      motionProvider.start(handleFrame);
+      activeProvider.start(handleFrame);
     }
-  }, [phase, countdown, motionProvider, handleFrame]);
+  }, [phase, countdown, activeProvider, handleFrame]);
 
   // Handle recording timer
   useEffect(() => {
@@ -135,7 +187,10 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
           playCountdownPip();
         }
         if (prev <= 1) {
-          if (intervalRef.current !== null) clearInterval(intervalRef.current);
+          if (intervalRef.current !== null) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
           return 0;
         }
         return prev - 1;
@@ -143,14 +198,20 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
     }, 1000);
 
     return () => {
-      if (intervalRef.current !== null) clearInterval(intervalRef.current);
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
   }, [phase]);
 
-  // Handle completion when timer hits 0
+  // Handle completion when countdown reaches zero
   useEffect(() => {
     if (phase === 'recording' && timeLeft === 0) {
-      motionProvider.stop();
+      if (completedRef.current) return;
+      completedRef.current = true;
+
+      activeProvider.stop();
       playTestComplete();
       setPhase('complete');
 
@@ -167,28 +228,38 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
         validityReason: validity.reason
       });
     }
-  }, [phase, timeLeft, motionProvider, onComplete]);
+  }, [phase, timeLeft, activeProvider, onComplete]);
 
-  // Cleanup on unmount
+  // Cleanup timers and sensor callbacks on unmount
   useEffect(() => {
     return () => {
-      motionProvider.stop();
-      if (intervalRef.current !== null) clearInterval(intervalRef.current);
+      cancelVoice();
+      activeProvider.stop();
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      if (countdownTimerRef.current !== null) {
+        clearTimeout(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
     };
-  }, [motionProvider]);
+  }, [activeProvider]);
 
   const handleStartCountdown = async () => {
+    cancelVoice();
+    completedRef.current = false;
     warmAudioContext();
-    // Synchronous user-gesture activation for iOS Safari WebKit permissions
-    if (motionProvider.requestPermission) {
+
+    if (activeProvider.requestPermission) {
       try {
-        const granted = await motionProvider.requestPermission();
+        const granted = await activeProvider.requestPermission();
         if (!granted) {
           setPhase('permission_denied');
           return;
         }
       } catch (err) {
-        console.warn('Motion permission request error or prompt dismissed:', err);
+        console.warn('Motion permission request error:', err);
         setPhase('permission_denied');
         return;
       }
@@ -198,11 +269,16 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
   };
 
   const handleRetestStance = () => {
+    cancelVoice();
+    completedRef.current = false;
+    hasSpokenSetupRef.current = false;
+    hasSpokenRecordingRef.current = false;
+    hasSpokenCompleteRef.current = false;
     if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    motionProvider.stop();
+    activeProvider.stop();
     recordingStartTimeRef.current = 0;
     halftimeFiredRef.current = false;
     ringBufferRef.current.reset();
@@ -213,21 +289,43 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
     setPhase('countdown');
   };
 
+  const handleSwitchToSimulated = () => {
+    cancelVoice();
+    const sim = new SimulatedMotionProvider(simProfile);
+    setActiveProvider(sim);
+    completedRef.current = false;
+    hasSpokenSetupRef.current = false;
+    setPhase('idle');
+  };
+
+  const handleCancel = () => {
+    cancelVoice();
+    activeProvider.stop();
+    if (intervalRef.current !== null) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (countdownTimerRef.current !== null) {
+      clearTimeout(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    onCancel();
+  };
+
   const handleTriggerLossOfBalance = () => {
-    if (motionProvider instanceof SimulatedMotionProvider) {
-      motionProvider.triggerPerturbation(1.6); // Concussive ataxia sway spike
+    if (activeProvider instanceof SimulatedMotionProvider) {
+      activeProvider.triggerPerturbation(1.6);
     }
   };
 
   const handleTriggerGripSlip = () => {
-    if (motionProvider instanceof SimulatedMotionProvider) {
-      motionProvider.triggerPerturbation(3.8); // Phone drop / grip slip (> 2.5 m/s^2)
+    if (activeProvider instanceof SimulatedMotionProvider) {
+      activeProvider.triggerPerturbation(3.8);
     }
   };
 
   return (
     <div className="bg-white border border-slate-300 rounded-xl p-6 shadow-sm relative overflow-hidden">
-      {/* Header Strip */}
       <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl mb-4 shadow-xs">
         <div>
           <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
@@ -235,19 +333,35 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
           </span>
           <h2 className="text-sm font-extrabold tracking-tight">{t.balanceTitle}</h2>
         </div>
-        {baselineSway > 0 && (
-          <div className="text-right">
-            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">
-              {t.preseasonTarget || (lang === 'es' ? 'Meta de Pretemporada' : 'Preseason Target')}
-            </span>
-            <span className="font-mono text-xs font-black text-emerald-400 tabular-nums">
-              {baselineSway.toFixed(3)} m/s²
-            </span>
-          </div>
-        )}
+        <div className="flex items-center space-x-3">
+          {voiceSupported && (
+            <button
+              type="button"
+              onClick={handleToggleVoice}
+              aria-label={voiceEnabled ? testAssist.voiceGuidanceDisable : testAssist.voiceGuidanceEnable}
+              aria-pressed={voiceEnabled}
+              className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border transition ${
+                voiceEnabled
+                  ? 'bg-blue-600 border-blue-400 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+              }`}
+            >
+              {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+            </button>
+          )}
+          {baselineSway > 0 && (
+            <div className="text-right">
+              <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">
+                {t.preseasonTarget}
+              </span>
+              <span className="font-mono text-xs font-black text-emerald-400 tabular-nums">
+                {baselineSway.toFixed(3)} m/s²
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Protocol Instructions Box */}
       <div className="mb-5 p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-950 flex items-start space-x-3 shadow-sm">
         <div className="mt-0.5 text-blue-700 font-black">1.</div>
         <p className="leading-relaxed font-medium">
@@ -255,7 +369,48 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
         </p>
       </div>
 
-      {/* Live Balance Sway Graph */}
+      {isSimulated && (
+        <div className="mb-5 p-3.5 rounded-xl bg-slate-50 border border-slate-300 shadow-xs">
+          <label className="text-xs font-bold text-slate-800 block mb-2">
+            {testAssist.simulationModeLabel}
+          </label>
+          <div className="inline-flex rounded-lg border border-slate-300 p-1 bg-white shadow-xs">
+            <button
+              type="button"
+              disabled={phase === 'countdown' || phase === 'recording'}
+              aria-pressed={simProfile === 'healthy'}
+              onClick={() => {
+                setSimProfile('healthy');
+                activeProvider.setSimulationProfile?.('healthy');
+              }}
+              className={`min-h-[44px] px-4 py-2 text-xs font-bold rounded-md transition flex items-center justify-center ${
+                simProfile === 'healthy'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+              } ${phase === 'countdown' || phase === 'recording' ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {testAssist.healthyAthlete}
+            </button>
+            <button
+              type="button"
+              disabled={phase === 'countdown' || phase === 'recording'}
+              aria-pressed={simProfile === 'concussed'}
+              onClick={() => {
+                setSimProfile('concussed');
+                activeProvider.setSimulationProfile?.('concussed');
+              }}
+              className={`min-h-[44px] px-4 py-2 text-xs font-bold rounded-md transition flex items-center justify-center ${
+                simProfile === 'concussed'
+                  ? 'bg-red-600 text-white shadow-xs'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+              } ${phase === 'countdown' || phase === 'recording' ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {testAssist.concussedAthlete}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <WaveformCanvas
           ringBuffer={ringBufferRef.current}
@@ -268,7 +423,6 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
         />
       </div>
 
-      {/* Primary Interaction Area */}
       {phase === 'idle' && (
         <div className="flex flex-col items-center justify-center py-6 text-center">
           <button
@@ -279,9 +433,7 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
             <span>{t.startBalanceTest}</span>
           </button>
           <p className="text-xs text-slate-500 font-medium mt-3">
-            {lang === 'es'
-              ? 'Requiere audio activado para señales de cuenta regresiva y finalización'
-              : 'Requires audio enabled for countdown & completion cues'}
+            {t.balanceAudioNotice}
           </p>
         </div>
       )}
@@ -289,7 +441,7 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
       {phase === 'countdown' && (
         <div className="flex flex-col items-center justify-center py-8 text-center animate-fade-in">
           <div className="text-xs uppercase tracking-widest text-slate-600 font-bold mb-2">
-            {lang === 'es' ? 'Prepárese - Coloque Contra el Pecho' : 'Get Ready - Position Against Chest'}
+            {t.getReadyChest}
           </div>
           <div className="text-7xl font-black font-mono text-emerald-600 tabular-nums">
             {countdown}
@@ -328,61 +480,29 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
             />
           </div>
 
-          {/* Interactive Simulation Loss-of-Balance and Grip-Slip Buttons */}
           {isSimulated && (
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg border border-slate-300">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSimProfile('healthy');
-                    motionProvider.setSimulationProfile?.('healthy');
-                  }}
-                  className={`px-2.5 py-1 rounded text-xs font-bold transition ${
-                    simProfile === 'healthy'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {lang === 'es' ? 'Saludable (0.08 m/s²)' : 'Healthy (0.08 m/s²)'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSimProfile('concussed');
-                    motionProvider.setSimulationProfile?.('concussed');
-                  }}
-                  className={`px-2.5 py-1 rounded text-xs font-bold transition ${
-                    simProfile === 'concussed'
-                      ? 'bg-red-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {lang === 'es' ? 'Conmocionado (0.35 m/s²)' : 'Concussed (0.35 m/s²)'}
-                </button>
-              </div>
               <button
                 type="button"
                 onClick={handleTriggerLossOfBalance}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-300 hover:bg-amber-100 text-amber-900 font-bold text-xs transition shadow-sm"
+                className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-amber-50 border border-amber-300 hover:bg-amber-100 text-amber-900 font-bold text-xs transition shadow-sm min-h-[44px]"
               >
                 <Zap className="w-3.5 h-3.5 text-amber-600" />
-                <span>{lang === 'es' ? 'Simular Inestabilidad (1.6 m/s²)' : 'Simulate Unsteady Balance (1.6 m/s²)'}</span>
+                <span>{t.simulateUnsteady}</span>
               </button>
               <button
                 type="button"
                 onClick={handleTriggerGripSlip}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-300 hover:bg-red-100 text-red-900 font-bold text-xs transition shadow-sm"
+                className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-red-50 border border-red-300 hover:bg-red-100 text-red-900 font-bold text-xs transition shadow-sm min-h-[44px]"
               >
                 <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
-                <span>{lang === 'es' ? 'Simular Deslizamiento (>2.5 m/s²)' : 'Simulate Phone Slip (>2.5 m/s²)'}</span>
+                <span>{t.simulatePhoneSlip}</span>
               </button>
             </div>
           )}
         </div>
       )}
 
-      {/* Real-time Grip-Slip / Motion Artifact Trip Card */}
       {phase === 'artifact_halted' && (
         <div className="flex flex-col items-center justify-center py-6 text-center animate-fade-in bg-red-50 border border-red-300 rounded-xl p-5 shadow-sm">
           <div className="w-12 h-12 rounded-xl bg-red-100 border border-red-300 flex items-center justify-center text-red-700 mb-3">
@@ -411,21 +531,28 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
             <ShieldAlert className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-slate-900 mb-1">
-            {lang === 'es' ? 'Permiso de Sensor de Movimiento Requerido' : 'Motion Sensor Permission Required'}
+            {t.motionPermissionTitle}
           </h3>
           <p className="text-xs text-slate-600 max-w-md mb-4 leading-relaxed font-medium">
-            {lang === 'es'
-              ? 'iOS Safari requiere acceso al acelerómetro para medir la oscilación del equilibrio. Por favor conceda permisos de movimiento o recargue el navegador.'
-              : 'iOS Safari requires accelerometer access to measure balance sway. Please grant motion permissions or reload the browser.'}
+            {t.motionPermissionDesc}
           </p>
-          <button
-            type="button"
-            onClick={handleStartCountdown}
-            className="flex items-center space-x-2 px-6 py-2.5 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs shadow-sm transition min-h-[44px]"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>{lang === 'es' ? 'Conceder Permiso e Intentar de Nuevo' : 'Grant Permission & Try Again'}</span>
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={handleStartCountdown}
+              className="flex items-center space-x-2 px-5 py-2.5 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs shadow-sm transition min-h-[44px]"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>{t.grantPermissionRetry}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleSwitchToSimulated}
+              className="flex items-center space-x-2 px-5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-xs transition min-h-[44px]"
+            >
+              <span>{t.useSimulatedFallback}</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -433,13 +560,24 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
         <div className="flex flex-col items-center justify-center py-6 text-center">
           <CheckCircle2 className="w-10 h-10 text-emerald-600 mb-2" />
           <h3 className="text-base font-bold text-slate-900">
-            {lang === 'es' ? 'Prueba de Equilibrio Completa' : 'Balance Test Complete'}
+            {t.balanceTestCompleteTitle}
           </h3>
           <p className="text-xs text-slate-600 mt-1 font-medium">
-            {lang === 'es' ? 'Procesando puntaje de estabilidad...' : 'Processing stability score...'}
+            {t.processingStability}
           </p>
         </div>
       )}
+
+      <div className="flex items-center justify-between pt-3 mt-4 border-t border-slate-200">
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition min-h-[44px]"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>{t.cancelScreening}</span>
+        </button>
+      </div>
     </div>
   );
 };

@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 import { RingBuffer } from '../services/motion/RingBuffer';
-import { SupportedLocale } from '../i18n/translations';
+import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
 
 interface WaveformCanvasProps {
   ringBuffer: RingBuffer;
@@ -12,7 +12,7 @@ interface WaveformCanvasProps {
   lang?: SupportedLocale;
 }
 
-export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
+const WaveformCanvasComponent: React.FC<WaveformCanvasProps> = ({
   ringBuffer,
   currentRms,
   currentX,
@@ -21,6 +21,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   isActive = true,
   lang = 'en'
 }) => {
+  const t = TRANSLATIONS[lang];
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const targetBufferRef = useRef<Float32Array>(new Float32Array(256));
   const metricsRef = useRef({ currentRms, currentX, currentY });
@@ -51,22 +52,22 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       const height = logicalHeight;
       const baselineY = height - 24;
 
-      // 1. Daylight clinical paper background with subtle grid
-      ctx.fillStyle = '#f8fafc'; // Clean slate-50 background
+      // Background
+      ctx.fillStyle = '#f8fafc';
       ctx.fillRect(0, 0, width, height);
 
       // Grid lines
-      ctx.strokeStyle = '#e2e8f0'; // Subtle slate-200 grid
+      ctx.strokeStyle = '#e2e8f0';
       ctx.lineWidth = 1;
 
-      // Horizontal baseline (zero planar sway)
+      // Horizontal baseline
       ctx.beginPath();
       ctx.moveTo(0, baselineY);
       ctx.lineTo(width, baselineY);
       ctx.stroke();
 
-      // Clinical elevated sway threshold (0.22 m/s² removal / 0.12 m/s² evaluation)
-      const scaleY = (height - 48) / 1.5; // Scale 0 to 1.5 m/s² across canvas height
+      // Elevated sway threshold
+      const scaleY = (height - 48) / 1.5;
       const thresholdY = baselineY - 0.22 * scaleY;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
@@ -75,17 +76,16 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // 2. Copy circular history without allocations
+      // Sway history trace from ring buffer
       const history = targetBufferRef.current;
       const count = ringBuffer.copyOrdered(history);
 
       if (count > 1) {
-        // High-contrast daylight trace colors
-        let strokeColor = '#059669'; // Saturated emerald green (normal)
+        let strokeColor = '#059669';
         if (rms > 0.25) {
-          strokeColor = '#dc2626'; // High-visibility red (severe sway / ataxia)
+          strokeColor = '#dc2626';
         } else if (rms > 0.12) {
-          strokeColor = '#d97706'; // Athletic amber (elevated sway)
+          strokeColor = '#d97706';
         }
 
         ctx.strokeStyle = strokeColor;
@@ -98,7 +98,6 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         for (let i = 0; i < count; i++) {
           const val = history[i];
           const x = i * stepX;
-          // Invert y so higher sway rises up from baselineY
           const clampedVal = Math.min(Math.max(0, val), 1.5);
           const y = baselineY - clampedVal * scaleY;
           if (i === 0) {
@@ -108,10 +107,9 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
           }
         }
         ctx.stroke();
-        ctx.shadowBlur = 0;
       }
 
-      // 3. Mini 2D Sway Reticle (Center of Gravity target in top-left)
+      // 2D Center of gravity reticle
       const reticleX = 45;
       const reticleY = 45;
       const reticleRadius = 28;
@@ -130,7 +128,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       ctx.moveTo(reticleX - reticleRadius, reticleY);
       ctx.lineTo(reticleX + reticleRadius, reticleY);
       ctx.moveTo(reticleX, reticleY - reticleRadius);
-      ctx.lineTo(reticleX, reticleY + reticleRadius);
+      ctx.lineTo(reticleX + reticleRadius, reticleY);
       ctx.stroke();
 
       // Center of gravity dot
@@ -169,12 +167,12 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       <div className="absolute top-2.5 right-3 flex items-center space-x-2">
         {isSimulated && (
           <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
-            {lang === 'es' ? 'Reproducción Simulada 60Hz' : 'Simulated 60Hz Replay'}
+            {t.simulatedReplayTag}
           </span>
         )}
         <div className="px-2.5 py-1 rounded-lg bg-white/95 border border-slate-300 text-right shadow-sm backdrop-blur-sm">
           <div className="text-[10px] text-slate-600 uppercase font-bold tracking-wider">
-            {lang === 'es' ? 'Índice de Estabilidad (RMS)' : 'Stability Index (RMS)'}
+            {t.stabilityIndexRmsTag}
           </div>
           <div
             className={`font-mono text-sm font-bold tabular-nums ${
@@ -190,10 +188,10 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         </div>
       </div>
       <div className="absolute bottom-2.5 left-3 text-[11px] text-slate-600 font-mono tracking-wide font-medium">
-        {lang === 'es'
-          ? 'Gráfico de Equilibrio en Vivo - Sensor de Movimiento 60Hz (256 muestras)'
-          : 'Live Balance Sway Graph - 60Hz Motion Sensor (256 samples)'}
+        {t.waveformCaption}
       </div>
     </div>
   );
 };
+
+export const WaveformCanvas = memo(WaveformCanvasComponent);

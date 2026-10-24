@@ -57,17 +57,38 @@ export function formatPlainTextReport(
 
   const triggersList = assessment.triage.primaryTriggers.join('; ') || t.summaryNone;
 
-  const bStability = (athlete.baselineStabilityIndex || 0.085).toFixed(3);
-  const cStability = assessment.balanceScore.stabilityIndex.toFixed(3);
-  const swayPct = `${assessment.triage.swayDegradationPercent > 0 ? '+' : ''}${assessment.triage.swayDegradationPercent.toFixed(1)}%`;
+  const bStability = (athlete.baselineStabilityIndex && athlete.baselineStabilityIndex > 0 ? athlete.baselineStabilityIndex : 0.085).toFixed(3);
+  const isBalanceSkipped = Boolean(assessment.balanceScore?.skippedReason);
+  const cStability = isBalanceSkipped
+    ? (assessment.balanceScore?.skippedReason || t.summaryNone)
+    : Number.isFinite(assessment.balanceScore?.stabilityIndex)
+      ? `${assessment.balanceScore.stabilityIndex.toFixed(3)} m/s²`
+      : 'N/A';
+  const swayPctStr = isBalanceSkipped || !Number.isFinite(assessment.balanceScore?.stabilityIndex)
+    ? ''
+    : ` (${assessment.triage.swayDegradationPercent > 0 ? '+' : ''}${assessment.triage.swayDegradationPercent.toFixed(1)}%)`;
 
-  const bReaction = athlete.baselineReactionTimeMs || 230;
-  const cReaction = assessment.reactionScore.averageMs;
-  const rxDelta = `${assessment.triage.reactionDelayDeltaMs > 0 ? '+' : ''}${assessment.triage.reactionDelayDeltaMs}ms`;
+  const bReaction = athlete.baselineReactionTimeMs && athlete.baselineReactionTimeMs > 0 ? athlete.baselineReactionTimeMs : 230;
+  const isReactionSkipped = Boolean(assessment.reactionScore?.skippedReason);
+  const cReaction = isReactionSkipped
+    ? (assessment.reactionScore?.skippedReason || t.summaryNone)
+    : Number.isFinite(assessment.reactionScore?.averageMs)
+      ? `${assessment.reactionScore.averageMs}ms`
+      : 'N/A';
+  const rxDeltaStr = isReactionSkipped || !Number.isFinite(assessment.reactionScore?.averageMs)
+    ? ''
+    : ` (${assessment.triage.reactionDelayDeltaMs > 0 ? '+' : ''}${assessment.triage.reactionDelayDeltaMs}ms)`;
 
-  const bKd = (athlete.baselineKingDevickSeconds || 42.0).toFixed(1);
-  const cKd = assessment.kingDevickScore.durationSeconds.toFixed(1);
-  const kdErr = assessment.kingDevickScore.errorsCount;
+  const bKd = (athlete.baselineKingDevickSeconds && athlete.baselineKingDevickSeconds > 0 ? athlete.baselineKingDevickSeconds : 42.0).toFixed(1);
+  const isKdSkipped = Boolean(assessment.kingDevickScore?.skippedReason);
+  const cKd = isKdSkipped
+    ? (assessment.kingDevickScore?.skippedReason || t.summaryNone)
+    : Number.isFinite(assessment.kingDevickScore?.durationSeconds)
+      ? `${assessment.kingDevickScore.durationSeconds.toFixed(1)}s`
+      : 'N/A';
+  const kdErrStr = isKdSkipped
+    ? ''
+    : ` (${t.summaryErrors} ${assessment.kingDevickScore?.errorsCount ?? 0})`;
 
   const evalName = evaluatorInfo.evaluatorName || t.summaryStaffFallback;
   const evalRole = evaluatorInfo.evaluatorRole;
@@ -85,9 +106,9 @@ ${assessment.triage.verdict}
 ${t.summaryTriggers} ${triggersList}
 
 ${t.summaryScoresHeader}
-- ${t.summaryTest2} ${bStability} m/s² -> ${cStability} m/s² (${swayPct})
-- ${t.summaryTest3} ${bReaction}ms -> ${cReaction}ms (${rxDelta})
-- ${t.summaryTest4} ${bKd}s -> ${cKd}s (${t.summaryErrors} ${kdErr})
+- ${t.summaryTest2} ${bStability} m/s² -> ${cStability}${swayPctStr}
+- ${t.summaryTest3} ${bReaction}ms -> ${cReaction}${rxDeltaStr}
+- ${t.summaryTest4} ${bKd}s -> ${cKd}${kdErrStr}
 
 ${t.summaryRedFlags}
 ${redFlagsList || t.summaryNoneReported}
@@ -102,7 +123,6 @@ ${notes}
 
 ${t.summarySafetyNotice}
 ${assessment.triage.nonDiagnosticDisclaimer}
-============================================
 `.trim();
 }
 
@@ -146,7 +166,8 @@ export function exportReportJsonFile(
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `sideline-report-${athlete.name.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.json`;
+  const safeName = (athlete.name || 'athlete').toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+  a.download = `sideline-report-${safeName}-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

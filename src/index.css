@@ -24,6 +24,18 @@ body {
   transform: translateY(1px);
 }
 
+/* Ensure no horizontal overflow at small screen widths */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Touch target minimum utility (44x44px for accessibility) */
+.touch-min {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 /* Container adaptations inside Desktop iPhone Preview frame */
 .phone-frame .md\:grid-cols-2,
 .phone-frame .md\:grid-cols-3,
@@ -43,10 +55,130 @@ body {
   text-align: left !important;
 }
 
+/* Sunlight Mode: High-Contrast Outdoor Field Theme for Stadium Glare */
+@media screen {
+  html.sunlight,
+  .sunlight {
+    color-scheme: light;
+  }
+
+  .sunlight body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Crisp pure white surfaces across app cards and containers */
+  .sunlight .phone-frame,
+  .sunlight header,
+  .sunlight nav,
+  .sunlight main,
+  .sunlight .bg-white,
+  .sunlight .bg-slate-50,
+  .sunlight .bg-slate-50\/70,
+  .sunlight .bg-slate-100,
+  .sunlight .bg-slate-100\/80 {
+    background-color: #ffffff !important;
+  }
+
+  /* Deep black text and bold weights for sunlight legibility */
+  .sunlight,
+  .sunlight h1,
+  .sunlight h2,
+  .sunlight h3,
+  .sunlight h4,
+  .sunlight p,
+  .sunlight span,
+  .sunlight label,
+  .sunlight div {
+    color: #000000;
+  }
+
+  .sunlight .text-slate-400,
+  .sunlight .text-slate-500,
+  .sunlight .text-slate-600,
+  .sunlight .text-slate-700,
+  .sunlight .text-slate-800,
+  .sunlight .text-slate-900,
+  .sunlight .text-gray-500,
+  .sunlight .text-gray-600,
+  .sunlight .text-gray-700 {
+    color: #000000 !important;
+    font-weight: 700;
+  }
+
+  /* High-contrast 2px solid dark borders on cards, buttons, and inputs */
+  .sunlight .phone-frame,
+  .sunlight .kpi-card,
+  .sunlight header,
+  .sunlight nav,
+  .sunlight div[class*="border"],
+  .sunlight button[class*="border"],
+  .sunlight input[class*="border"],
+  .sunlight select[class*="border"],
+  .sunlight textarea[class*="border"] {
+    border-width: 2px !important;
+    border-color: #0f172a !important;
+  }
+
+  .sunlight input,
+  .sunlight textarea,
+  .sunlight select {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 2px solid #0f172a !important;
+    font-weight: 700 !important;
+  }
+
+  /* High-contrast status badges and cards */
+  .sunlight .bg-red-50,
+  .sunlight .bg-red-100 {
+    background-color: #fee2e2 !important;
+    border: 2px solid #991b1b !important;
+  }
+  .sunlight .text-red-700,
+  .sunlight .text-red-800,
+  .sunlight .text-red-900,
+  .sunlight .text-red-950 {
+    color: #7f1d1d !important;
+    font-weight: 800 !important;
+  }
+
+  .sunlight .bg-amber-50,
+  .sunlight .bg-amber-100 {
+    background-color: #fef3c7 !important;
+    border: 2px solid #92400e !important;
+  }
+  .sunlight .text-amber-700,
+  .sunlight .text-amber-800,
+  .sunlight .text-amber-900,
+  .sunlight .text-amber-950 {
+    color: #78350f !important;
+    font-weight: 800 !important;
+  }
+
+  .sunlight .bg-emerald-50,
+  .sunlight .bg-emerald-100 {
+    background-color: #d1fae5 !important;
+    border: 2px solid #065f46 !important;
+  }
+  .sunlight .text-emerald-700,
+  .sunlight .text-emerald-800,
+  .sunlight .text-emerald-950 {
+    color: #064e3b !important;
+    font-weight: 800 !important;
+  }
+
+  .sunlight .bg-blue-50,
+  .sunlight .bg-blue-100 {
+    background-color: #dbeafe !important;
+    border: 2px solid #1e40af !important;
+  }
+}
+
 /* Print Styles for Clinical Packet */
 @media print {
   @page {
-    margin: 12mm;
+    margin: 10mm;
     size: letter portrait;
   }
   body, html {
@@ -56,19 +188,36 @@ body {
     height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
+    overflow: visible !important;
   }
   header, footer, nav, button, .no-print {
     display: none !important;
   }
-  .print-shell {
-    max-width: 100% !important;
+  .phone-frame {
+    all: unset !important;
+    display: block !important;
     width: 100% !important;
-    min-height: auto !important;
-    height: auto !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    overflow: visible !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+  }
+  .phone-frame > header,
+  .phone-frame > main,
+  .phone-frame > nav {
+    display: none !important;
+  }
+  .modal-print-container {
     position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
   }
 }

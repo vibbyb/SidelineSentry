@@ -83,7 +83,7 @@ export interface AssessmentRecord {
     skippedReason?: string;
   };
 
-  // Eye & Reading Assessment (Test 4)
+  // King-Devick Reading Assessment (Test 4)
   kingDevickScore: {
     durationSeconds: number;
     errorsCount: number;
@@ -122,3 +122,6 @@ export interface AssessmentRecord {
     hasIndividualBaseline?: boolean;
   };
 }
+
+// Alias for assessment record sessions
+export type AssessmentSession = AssessmentRecord;

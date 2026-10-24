@@ -5,14 +5,18 @@ let audioCtx: AudioContext | null = null;
 
 function getContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
-  if (!audioCtx) {
+  if (!audioCtx || audioCtx.state === 'closed') {
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (AudioContextClass) {
-      audioCtx = new AudioContextClass();
+      try {
+        audioCtx = new AudioContextClass();
+      } catch {
+        return null;
+      }
     }
   }
   if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume();
+    audioCtx.resume().catch(err => console.warn('Audio resume blocked:', err));
   }
   return audioCtx;
 }
@@ -20,7 +24,7 @@ function getContext(): AudioContext | null {
 export function warmAudioContext(): void {
   const ctx = getContext();
   if (ctx && ctx.state === 'suspended') {
-    ctx.resume().catch(() => {});
+    ctx.resume().catch(err => console.warn('Audio resume blocked:', err));
   }
 }
 
@@ -31,12 +35,13 @@ export function playTone(freq: number, type: OscillatorType, durationMs: number,
   try {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+    const safeDuration = Math.max(10, durationMs);
 
     osc.type = type;
     osc.frequency.setValueAtTime(freq, ctx.currentTime);
 
     gain.gain.setValueAtTime(gainVal, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durationMs / 1000);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + safeDuration / 1000);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -51,7 +56,7 @@ export function playTone(freq: number, type: OscillatorType, durationMs: number,
     };
 
     osc.start();
-    osc.stop(ctx.currentTime + durationMs / 1000);
+    osc.stop(ctx.currentTime + safeDuration / 1000);
   } catch (e) {
     console.warn('Audio cue suppressed or unsupported:', e);
   }

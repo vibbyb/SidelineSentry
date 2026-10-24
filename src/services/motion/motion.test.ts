@@ -3,9 +3,11 @@ import {
   SimulatedMotionProvider,
   MotionProviderFactory,
   HardwareMotionProvider,
-  isMobileDevice
+  isMobileDevice,
+  createMotionProvider
 } from '../motion';
-import { MotionFrame } from '../../types/clinical';
+import { MotionFrame, AthleteProfile } from '../../types/clinical';
+import { auditPosturalSway, calculateTriage } from '../scoring';
 
 describe('motion providers', () => {
   it('generates healthy vs concussed motion profiles', () => {
@@ -153,9 +155,149 @@ describe('motion providers', () => {
     }
   });
 
-  it('uses simulated provider on desktop browsers', () => {
-    const provider = MotionProviderFactory.createDefaultProvider();
+  it('uses simulated provider on desktop browsers and defaults to healthy profile', () => {
+    const provider = createMotionProvider();
     expect(provider).toBeDefined();
     expect(provider.getMode()).toBe('simulated');
+    expect((provider as SimulatedMotionProvider).getSimulationProfile()).toBe('healthy');
+
+    const factoryProvider = MotionProviderFactory.createDefaultProvider();
+    expect(factoryProvider.getMode()).toBe('simulated');
+    expect((factoryProvider as SimulatedMotionProvider).getSimulationProfile()).toBe('healthy');
+  });
+
+  it('respects forceSimulated option even on mobile devices', () => {
+    const originalNavigator = globalThis.navigator;
+    // Mock mobile device
+    Object.defineProperty(globalThis, 'navigator', {
+      value: {
+        userAgent: 'iPhone; CPU iPhone OS 17_0 like Mac OS X',
+        maxTouchPoints: 5
+      },
+      configurable: true,
+      writable: true
+    });
+
+    expect(isMobileDevice()).toBe(true);
+
+    // Standard creation returns HardwareMotionProvider on mobile
+    const normalMobileProvider = createMotionProvider();
+    expect(normalMobileProvider.getMode()).toBe('hardware');
+
+    // With forceSimulated: true, it returns SimulatedMotionProvider
+    const forcedSimProvider = createMotionProvider('concussed', { forceSimulated: true });
+    expect(forcedSimProvider.getMode()).toBe('simulated');
+    expect((forcedSimProvider as SimulatedMotionProvider).getSimulationProfile()).toBe('concussed');
+
+    // Restore original navigator
+    Object.defineProperty(globalThis, 'navigator', {
+      value: originalNavigator,
+      configurable: true,
+      writable: true
+    });
+  });
+
+  it('switches simulation profile between healthy and concussed immediately', () => {
+    const sim = new SimulatedMotionProvider('healthy');
+    expect(sim.getSimulationProfile()).toBe('healthy');
+
+    sim.setSimulationProfile('concussed');
+    expect(sim.getSimulationProfile()).toBe('concussed');
+
+    sim.setSimulationProfile('healthy');
+    expect(sim.getSimulationProfile()).toBe('healthy');
+  });
+
+  it('confirms desktop simulated motion stays within validity boundaries (>0.005 and <2.5)', () => {
+    const baseAthlete: AthleteProfile = {
+      id: 'desktop-demo-ath',
+      name: 'Demo Athlete',
+      jerseyNumber: '7',
+      sport: 'Basketball',
+      position: 'Forward',
+      hasRecordedBaseline: true,
+      baselineStabilityIndex: 0.085,
+      baselineReactionTimeMs: 230,
+      baselineKingDevickSeconds: 42.0
+    };
+
+    // 1. Healthy Profile: run 200 ticks (~3.3 seconds of simulated motion)
+    const healthySim = new SimulatedMotionProvider('healthy');
+    let healthyPeak = 0;
+    let lastHealthyFrame: MotionFrame = healthySim.tick();
+
+    for (let i = 0; i < 200; i++) {
+      const frame = healthySim.tick();
+      lastHealthyFrame = frame;
+      const mag = Math.sqrt(frame.x * frame.x + frame.z * frame.z);
+      if (mag > healthyPeak) healthyPeak = mag;
+    }
+
+    // Verify healthy simulated RMS is well above 0.005 floor and peak below 2.5 spike limit
+    expect(lastHealthyFrame.rms).toBeGreaterThan(0.005);
+    expect(healthyPeak).toBeLessThan(2.5);
+
+    const healthyAudit = auditPosturalSway(lastHealthyFrame.rms, false, healthyPeak);
+    expect(healthyAudit.valid).toBe(true);
+
+    const healthyTriage = calculateTriage(
+      baseAthlete,
+      {
+        durationSeconds: 15,
+        stabilityIndex: lastHealthyFrame.rms,
+        peakSway: healthyPeak,
+        swayHistory: [],
+        valid: true
+      },
+      { averageMs: 230, fastestMs: 220, slowestMs: 240, trials: [230, 230, 230], falseStarts: 0, valid: true },
+      { durationSeconds: 42.0, errorsCount: 0, completed: true, valid: true },
+      {
+        neckPain: false, doubleVision: false, weaknessOrTingling: false,
+        severeOrIncreasingHeadache: false, seizureOrConvulsion: false,
+        lossOfConsciousness: false, deterioratingConsciousState: false,
+        vomitingRepeated: false, increasingConfusion: false
+      }
+    );
+    expect(healthyTriage.verdict).toBe('CLEAR_OBSERVED');
+
+    // 2. Concussed Profile: run 200 ticks
+    const concussedSim = new SimulatedMotionProvider('concussed');
+    let concussedPeak = 0;
+    let lastConcussedFrame: MotionFrame = concussedSim.tick();
+
+    for (let i = 0; i < 200; i++) {
+      const frame = concussedSim.tick();
+      lastConcussedFrame = frame;
+      const mag = Math.sqrt(frame.x * frame.x + frame.z * frame.z);
+      if (mag > concussedPeak) concussedPeak = mag;
+    }
+
+    expect(lastConcussedFrame.rms).toBeGreaterThan(0.005);
+    expect(concussedPeak).toBeLessThan(2.5);
+
+    const concussedAudit = auditPosturalSway(lastConcussedFrame.rms, false, concussedPeak);
+    expect(concussedAudit.valid).toBe(true);
+
+    const concussedTriage = calculateTriage(
+      baseAthlete,
+      {
+        durationSeconds: 15,
+        stabilityIndex: lastConcussedFrame.rms,
+        peakSway: concussedPeak,
+        swayHistory: [],
+        valid: true
+      },
+      { averageMs: 230, fastestMs: 220, slowestMs: 240, trials: [230, 230, 230], falseStarts: 0, valid: true },
+      { durationSeconds: 42.0, errorsCount: 0, completed: true, valid: true },
+      {
+        neckPain: false, doubleVision: false, weaknessOrTingling: false,
+        severeOrIncreasingHeadache: false, seizureOrConvulsion: false,
+        lossOfConsciousness: false, deterioratingConsciousState: false,
+        vomitingRepeated: false, increasingConfusion: false
+      }
+    );
+    // Concussed profile produces elevated sway => IMMEDIATE_REMOVAL, never INVALID_ASSESSMENT_RETEST_REQUIRED
+    expect(concussedTriage.verdict).toBe('IMMEDIATE_REMOVAL');
+    expect(concussedTriage.verdict).not.toBe('INVALID_ASSESSMENT_RETEST_REQUIRED');
   });
 });

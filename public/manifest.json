@@ -1,7 +1,7 @@
 {
   "name": "SidelineSentry - Sideline Safety & Concussion Triage",
   "short_name": "SidelineSentry",
-  "description": "100% Offline Sideline Concussion Safety and Tri-Modal Triage Tool for High School Athletics",
+  "description": "Sideline concussion screening and triage tool for high school athletics",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

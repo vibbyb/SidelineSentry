@@ -11,8 +11,9 @@ export class RingBuffer {
   private sessionCount: number = 0;
 
   constructor(capacity: number = 256) {
-    this.capacity = capacity;
-    this.buffer = new Float32Array(capacity);
+    const safeCapacity = Math.max(1, Math.floor(Number.isFinite(capacity) ? capacity : 256));
+    this.capacity = safeCapacity;
+    this.buffer = new Float32Array(safeCapacity);
   }
 
   public push(value: number): void {
@@ -43,6 +44,19 @@ export class RingBuffer {
       this.sumSq = Math.max(0, this.sumSq - (oldValue * oldValue) + sqVal);
       this.sum = this.sum - oldValue + f32Val;
       this.head = (this.head + 1) % this.capacity;
+
+      // Periodically eliminate floating-point drift on buffer wrap-around
+      if (this.head === 0) {
+        let s = 0;
+        let sq = 0;
+        for (let i = 0; i < this.capacity; i++) {
+          const v = this.buffer[i];
+          s += v;
+          sq += v * v;
+        }
+        this.sum = s;
+        this.sumSq = sq;
+      }
     }
   }
 
@@ -86,6 +100,7 @@ export class RingBuffer {
 
   // Copies oldest-to-newest samples into a target array
   public copyOrdered(target: Float32Array): number {
+    if (!target || typeof target.length !== 'number' || target.length === 0) return 0;
     const copyCount = Math.min(this.count, target.length);
     if (this.count < this.capacity) {
       target.set(this.buffer.subarray(0, copyCount));

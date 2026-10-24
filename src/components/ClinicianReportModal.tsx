@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AthleteProfile, AssessmentRecord, ClinicianCredential } from '../types/clinical';
-import { Printer, Copy, Check, X, Shield, Download, Lock, CheckCircle2 } from 'lucide-react';
+import { Printer, Copy, Check, X, Shield, Download, Lock, CheckCircle2, Share2 } from 'lucide-react';
 import { SignatureCanvas } from './SignatureCanvas';
 import { generateSessionHash } from '../services/security/sessionHash';
 import { copyToClipboard } from '../utils/clipboard';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
+import { translateTrigger } from '../i18n/triggerTranslator';
+import { buildParentShareSummary, shareParentSummary } from '../utils/share';
+import { SHARE_THEME_TEXT } from '../i18n/shareTheme';
 import {
   EvaluatorReportInfo,
   CREDENTIAL_OPTIONS,
@@ -29,10 +32,25 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
   onUpdateAssessment
 }) => {
   const t = TRANSLATIONS[lang];
+  const shareText = SHARE_THEME_TEXT[lang];
   const [copied, setCopied] = useState<boolean>(false);
   const [copiedHash, setCopiedHash] = useState<boolean>(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
+  const [manualShareSummary, setManualShareSummary] = useState<string | null>(null);
   const copiedTimeoutRef = useRef<number | null>(null);
   const copiedHashTimeoutRef = useRef<number | null>(null);
+
+  const handleShareWithParent = async () => {
+    const summaryText = buildParentShareSummary({ ...assessment, athlete }, lang);
+    const shareTitle = `${athlete.name} - ${shareText.shareTitle}`;
+    const outcome = await shareParentSummary(summaryText, shareTitle);
+    if (outcome === 'shared' || outcome === 'copied') {
+      setShareToast(shareText.shareSuccessToast);
+      setTimeout(() => setShareToast(null), 3500);
+    } else if (outcome === 'manual') {
+      setManualShareSummary(summaryText);
+    }
+  };
 
   const [notes, setNotes] = useState<string>(() => getSportBiomechanicsNote(athlete.sport, lang));
   const [evaluatorName, setEvaluatorName] = useState<string>(assessment.certification?.evaluatorName || '');
@@ -46,7 +64,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
 
   const evaluatorInfo: EvaluatorReportInfo = { evaluatorName, evaluatorRole, licenseNumber, signatureUrl };
 
-  // Compute 64-character SHA-256 session integrity digest
+  // Compute report check code
   useEffect(() => {
     let isCurrent = true;
     const payload = JSON.stringify({
@@ -163,9 +181,9 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="clinician-report-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md overflow-y-auto"
+      className="modal-print-container fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md overflow-y-auto print:p-0 print:bg-transparent print:static print:overflow-visible"
     >
-      <div className="bg-white border border-slate-300 w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden my-8 text-slate-900 relative print:bg-white print:text-black print:border-none print:shadow-none print:w-full">
+      <div className="bg-white border border-slate-300 w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden my-8 text-slate-900 relative print:bg-white print:text-black print:border-none print:shadow-none print:w-full print:my-0 print:rounded-none">
         {/* Header Bar */}
         <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-white print:hidden">
           <div className="flex items-center space-x-2">
@@ -175,8 +193,17 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
 
           <div className="flex flex-wrap items-center gap-2">
             <button
+              type="button"
+              onClick={handleShareWithParent}
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-xs text-white border border-emerald-600 font-bold transition min-h-[44px]"
+              title={shareText.shareWithParentBtn}
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>{shareText.shareWithParentBtn}</span>
+            </button>
+            <button
               onClick={() => exportReportJsonFile(athlete, assessment, sessionHash, evaluatorInfo, notes)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-blue-300 border border-slate-700 font-bold transition"
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-blue-300 border border-slate-700 font-bold transition min-h-[44px]"
               title={t.exportJsonTooltip}
             >
               <Download className="w-3.5 h-3.5" />
@@ -184,14 +211,14 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             </button>
             <button
               onClick={handleCopySummary}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 font-bold transition"
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 font-bold transition min-h-[44px]"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? t.copied : t.copyText}</span>
             </button>
             <button
               onClick={() => window.print()}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs shadow-sm transition uppercase"
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs shadow-sm transition uppercase min-h-[44px]"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>{t.printPdf}</span>
@@ -199,15 +226,26 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             <button
               onClick={handleClose}
               aria-label={t.closeModal}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="p-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Printable Packet Content */}
-        <div className="p-6 sm:p-8 space-y-6 max-h-[80vh] overflow-y-auto bg-white text-slate-900 print:max-h-none print:overflow-visible">
+        {shareToast && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="bg-emerald-600 text-white px-6 py-2.5 text-xs font-bold flex items-center space-x-2 shrink-0 print:hidden shadow-xs"
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
+            <span>{shareToast}</span>
+          </div>
+        )}
+
+        {/* Printable Report Content */}
+        <div className="p-6 sm:p-8 space-y-6 max-h-[80vh] overflow-y-auto bg-white text-slate-900 print:max-h-none print:overflow-visible print:p-0">
           {/* Institution / Platform Banner */}
           <div className="flex justify-between items-start border-b pb-4 border-slate-300 print:border-black">
             <div>
@@ -234,7 +272,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             ))}
           </div>
 
-          {/* Observational Triage Verdict Banner */}
+          {/* Sideline Check Result Banner */}
           <div
             className={`p-4 rounded-xl border-2 font-mono shadow-sm ${
               assessment.triage.verdict === 'IMMEDIATE_REMOVAL'
@@ -258,7 +296,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
               <div className="mt-2 text-xs font-bold space-y-0.5">
                 <div>{t.observedTriggersHeader}</div>
                 {assessment.triage.primaryTriggers.map((tItem, idx) => (
-                  <div key={idx} className="pl-2 text-red-700 print:text-red-700">• {tItem}</div>
+                  <div key={idx} className="pl-2 text-red-700 print:text-red-700">• {translateTrigger(tItem, lang)}</div>
                 ))}
               </div>
             )}
@@ -349,6 +387,8 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
               <SignatureCanvas
                 label={t.signatureLabel}
                 clearLabel={t.clearSig}
+                initialSignature={signatureUrl}
+                lang={lang}
                 onChange={url => setSignatureUrl(url)}
               />
               {signatureUrl && (
@@ -362,7 +402,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             <p className="text-[10px] text-slate-600 leading-tight italic font-medium">{t.attestationStatement}</p>
           </div>
 
-          {/* Verification Code Block */}
+          {/* Check Code Block */}
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-sm">
             <div className="flex items-center space-x-2">
               <Lock className="w-4 h-4 text-emerald-700 shrink-0" />
@@ -374,17 +414,27 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             <button
               type="button"
               onClick={handleCopyHash}
-              className="shrink-0 text-[10px] px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold transition shadow-sm"
+              className="shrink-0 text-xs px-3 py-2 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold transition shadow-sm min-h-[44px]"
             >
               {copiedHash ? t.hashCopied : t.copyHash}
             </button>
           </div>
 
           {/* Parent & Caregiver Directives */}
-          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 print:bg-gray-100 print:border-gray-300 text-xs space-y-1.5 shadow-sm">
-            <h4 className="font-bold text-blue-950 print:text-black flex items-center space-x-1.5">
-              <span>{t.parentInstructionsTitle}</span>
-            </h4>
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 print:bg-gray-100 print:border-gray-300 text-xs space-y-2 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-bold text-blue-950 print:text-black flex items-center space-x-1.5">
+                <span>{t.parentInstructionsTitle}</span>
+              </h4>
+              <button
+                type="button"
+                onClick={handleShareWithParent}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs transition print:hidden min-h-[44px]"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>{shareText.shareWithParentBtn}</span>
+              </button>
+            </div>
             <p className="text-blue-900 print:text-gray-700 leading-relaxed text-[11px] font-medium">{t.parentInstructionsText}</p>
           </div>
 
@@ -398,12 +448,56 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             />
           </div>
 
-          {/* CDC Mandatory Disclaimer Footer */}
+          {/* CDC Disclaimer Footer */}
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-300 text-[11px] text-slate-600 leading-normal print:bg-white print:border-gray-300 print:text-gray-600 font-medium">
             <strong className="text-slate-900 font-bold">{t.nonDiagnosticNotice}</strong> {assessment.triage.nonDiagnosticDisclaimer}
           </div>
         </div>
       </div>
+
+      {manualShareSummary && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="manual-share-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm print:hidden"
+        >
+          <div className="bg-white border-2 border-slate-900 w-full max-w-lg rounded-2xl p-5 shadow-2xl space-y-3 text-slate-900">
+            <div className="flex items-center justify-between">
+              <h3 id="manual-share-modal-title" className="text-sm font-bold uppercase tracking-wide">
+                {shareText.manualShareTitle}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setManualShareSummary(null)}
+                className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label={shareText.closeManualShare}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-600">
+              {shareText.manualShareHelp}
+            </p>
+            <textarea
+              readOnly
+              value={manualShareSummary}
+              onClick={e => (e.target as HTMLTextAreaElement).select()}
+              rows={10}
+              className="w-full p-3 rounded-xl border-2 border-slate-300 font-mono text-xs bg-slate-50 text-slate-900 focus:outline-none focus:border-slate-900 select-all"
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setManualShareSummary(null)}
+                className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold min-h-[44px]"
+              >
+                {shareText.closeManualShare}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

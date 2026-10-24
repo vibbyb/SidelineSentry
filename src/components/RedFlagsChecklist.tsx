@@ -80,14 +80,14 @@ export const RedFlagsChecklist: React.FC<RedFlagsChecklistProps> = ({
         </div>
       </div>
 
-      {/* Emergency Lockdown Active Alert Card */}
+      {/* Emergency Alert Card */}
       {hasAnyFlag && (
         <div className="mb-5 p-4 rounded-xl bg-red-50 border border-red-300 text-slate-900 shadow-sm animate-fade-in">
           <div className="flex items-start space-x-3">
             <ShieldAlert className="w-5 h-5 text-red-700 shrink-0 mt-0.5" />
             <div className="flex-1">
               <h4 className="text-xs font-bold uppercase tracking-wider text-red-700">
-                {t.emergencyTriggered} &bull; {lang === 'es' ? 'No realizar pruebas físicas' : 'Do Not Run Physical Tests'}
+                {t.emergencyTriggered} &bull; {t.doNotRunPhysicalTests}
               </h4>
               <p className="text-xs text-red-950 mt-1 leading-relaxed font-medium">
                 {t.emergencyLockdownWarning}
@@ -95,7 +95,7 @@ export const RedFlagsChecklist: React.FC<RedFlagsChecklistProps> = ({
               <div className="flex flex-wrap items-center gap-3 mt-3">
                 <a
                   href="tel:911"
-                  className="flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm transition min-h-[40px]"
+                  className="flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm transition min-h-[44px]"
                 >
                   <PhoneCall className="w-3.5 h-3.5" />
                   <span>{t.call911}</span>
@@ -104,7 +104,7 @@ export const RedFlagsChecklist: React.FC<RedFlagsChecklistProps> = ({
                   <button
                     type="button"
                     onClick={onEmergencyLockdown}
-                    className="flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 text-xs font-bold transition min-h-[40px]"
+                    className="flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 text-xs font-bold transition min-h-[44px]"
                   >
                     <span>{t.lockdownProceed}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -116,7 +116,7 @@ export const RedFlagsChecklist: React.FC<RedFlagsChecklistProps> = ({
         </div>
       )}
 
-      {/* Maddock's Sideline Orientation Protocol Section */}
+      {/* Maddock's Sideline Memory Section */}
       <div className="mb-5 bg-slate-50 border border-slate-300 rounded-xl p-4 shadow-sm">
         <div className="flex items-center space-x-2 mb-1.5">
           <HelpCircle className="w-4 h-4 text-blue-700" />
@@ -152,7 +152,7 @@ export const RedFlagsChecklist: React.FC<RedFlagsChecklistProps> = ({
                   <button
                     type="button"
                     onClick={() => setMaddocksFailure(item.key, false)}
-                    className={`flex-1 px-3 py-1.5 text-xs font-bold rounded-lg border transition min-h-[36px] ${
+                    className={`flex-1 px-3 py-2 text-xs font-bold rounded-lg border transition min-h-[44px] ${
                       isPassed
                         ? 'bg-emerald-100 text-emerald-800 border-emerald-400 shadow-sm'
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -163,7 +163,7 @@ export const RedFlagsChecklist: React.FC<RedFlagsChecklistProps> = ({
                   <button
                     type="button"
                     onClick={() => setMaddocksFailure(item.key, true)}
-                    className={`flex-1 px-3 py-1.5 text-xs font-bold rounded-lg border transition min-h-[36px] ${
+                    className={`flex-1 px-3 py-2 text-xs font-bold rounded-lg border transition min-h-[44px] ${
                       isFailed
                         ? 'bg-red-700 text-white border-red-700 shadow-sm'
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'

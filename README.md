@@ -1,32 +1,52 @@
 # SidelineSentry
 
-SidelineSentry is an offline-capable web application designed for high school and youth sports sidelines. When a full-time athletic trainer or medical professional isn't available on the field, SidelineSentry helps coaches, parents, and volunteer staff conduct a structured 3-minute concussion screening check directly on a mobile phone or tablet.
+SidelineSentry is an offline concussion screening web app designed for high school and youth sports sidelines. At many middle school, freshman, and community games, teams cannot afford a certified athletic trainer on every field. According to the national ATLAS study, 34% of U.S. high schools operate without an athletic trainer. SidelineSentry gives coaches, parents, and volunteers a structured three-minute screening protocol based on CDC guidelines to help them make safe, informed decisions when an athlete takes a hard hit.
 
-## Features
+## How It Works
 
-- **Red Flags & Immediate Symptoms Check**: Rapid triage checklist covering CDC red flags (loss of consciousness, neck pain, vomiting, worsening headache) and standard memory orientation questions (Maddock's score).
-- **15-Second Balance & Sway Check**: Uses device motion sensors (accelerometer) with a real-time high-pass filter to measure postural sway in double-leg, single-leg, and tandem stances.
-- **Visual Reaction Time Check**: Randomized visual stimulus test that measures motor response latency across multiple trials to detect acute neurological delays.
-- **Rapid Number Reading Check**: Timed saccadic eye tracking test (based on the King-Devick protocol) where the athlete reads aloud number grids to assess visual processing speed.
-- **Preseason Baselines & Athlete Roster**: Stores individual preseason baseline scores locally so sideline retests can be directly compared against an athlete's personal normal.
-- **Printable Parent & Doctor Summary**: Generates an immediate, clear PDF/paper report with timestamps, score comparisons, and an on-screen signature pad to hand directly to parents and urgent care doctors.
-- **Bilingual Interface (English / Spanish)**: One-tap `EN | ES` language toggle for all screening instructions, symptom questions, and discharge summaries.
-- **100% Offline & Private**: Runs entirely in the device browser using local storage with zero server dependencies or external data tracking.
+SidelineSentry walks the screener through four main checks before generating an incident report:
+
+### 1. CDC Red Flags and Maddocks Questions
+The screener first checks for emergency red flags like loss of consciousness, neck pain, repeated vomiting, seizures, or worsening headache. If any red flag is selected, the app locks down physical testing and displays an emergency button to call 911 immediately. If there are no urgent red flags, the screener asks three Maddocks memory questions to test orientation: the current venue, the current period or half, and the game score.
+
+### 2. 15-Second Postural Sway Check
+The athlete holds the phone flat against their chest for 15 seconds. The app reads raw accelerometer data from the DeviceMotionEvent API and runs it through a 0.5 Hz high-pass filter (GravityFilter.ts) to remove static gravity acceleration (9.8 m/s²). It computes planar sway from the horizontal axes, pushes readings into a 256-sample ring buffer, and calculates the root mean square (RMS) stability index. If the phone slips or the athlete stumbles abruptly (magnitude over 2.5 m/s²), the test flags a motion artifact and asks for a restart. On laptops or desktop computers without motion hardware, the app switches to a simulated sensor provider with healthy and concussed sway profiles.
+
+### 3. Visual Reaction Time
+To check motor response speed, the screen changes color after a randomized delay between 1.5 and 3.5 seconds. The athlete taps the screen as fast as possible across three successive trials. Tapping before the color changes records a false start. The app records the fastest, slowest, and average response times in milliseconds and compares them against any saved preseason baseline.
+
+### 4. King-Devick Rapid Number Reading
+The athlete reads three 5x5 number cards aloud as quickly as possible. The first card includes guide lines between numbers, the second uses an open grid, and the third uses a compact grid. The screener uses on-screen plus and minus buttons to track reading mistakes while the timer runs. This tests visual processing speed and eye movement coordination without requiring specialized eye-tracking hardware.
+
+## Sideline and Recovery Features
+
+- Local Baselines: Preseason baseline times and balance measurements can be saved for each athlete on the roster. During a sideline test, the app compares the new numbers against the player's personal baseline rather than generic population averages.
+- Voice Instructions: Screener can toggle on spoken voice instructions in English or Spanish using the browser Web Speech API. This lets coaches keep their eyes and hands on the athlete instead of staring at the screen.
+- Sunlight Mode: A high-contrast display toggle in the header switches the theme for bright midday stadium sunlight and glare.
+- Share with Parent: Screeners can share a plain-text incident summary directly through the phone's native share sheet or copy it to the clipboard to text parents immediately.
+- Printable Medical Packet: Formats an incident summary using clean CSS print styles (window.print()). Screeners can capture a digital signature directly on screen and print physical copies or export a PDF with a tamper-evident SHA-256 session hash.
+- CDC 6-Step Return-to-Play Tracker: Inside each athlete's history drawer, screeners track the six graduated CDC recovery stages with 24-hour spacing warnings and medical provider sign-off before full contact.
+- Daily Symptom Log: Tracks seven concussion symptoms on a 0 to 6 scale (42 points total) with an SVG recovery trend line over time.
+- Roster Backup and Management: Coaches can export the team roster to a JSON file and import it on another phone without needing a cloud server. Athletes can also be removed with a confirmation dialog.
+- Judge-Friendly Demo Mode: Includes a Try a Demo button and a Healthy Athlete or Concussed Athlete toggle to test the full sideline workflow on laptops or browsers without motion sensors.
+- Bilingual Support: A header toggle switches all prompts, test instructions, and printed reports between English and Spanish.
+- Offline Reliability: Works offline after the first visit via a registered service worker (sw.js). All data stays in browser localStorage with zero tracking or remote database requirements.
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS
-- **Build Tool**: Vite
-- **Sensor APIs**: Web Audio API (auditory cues), DeviceMotion API (accelerometer sway tracking)
-- **Testing**: Vitest
+- React 18 and TypeScript (Strict)
+- Tailwind CSS with PostCSS
+- Vite for bundling
+- Vitest (87 unit and validity tests passing)
+- Web APIs: DeviceMotionEvent, Web Audio API, Web Crypto API, Web Speech API, and HTML5 Canvas
 
-## Running Locally
+## Running the Project
 
-To run SidelineSentry locally on your computer or test on a mobile device on your local network:
+To run SidelineSentry locally:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/vibhav/SidelineSentry.git
+   git clone https://github.com/vibbyb/SidelineSentry.git
    cd SidelineSentry
    ```
 
@@ -35,12 +55,12 @@ To run SidelineSentry locally on your computer or test on a mobile device on you
    npm install
    ```
 
-3. Start the local development server:
+3. Start the Vite development server:
    ```bash
    npm run dev
    ```
 
-4. Run the automated test suite:
+4. Run tests:
    ```bash
    npm test
    ```
@@ -50,6 +70,6 @@ To run SidelineSentry locally on your computer or test on a mobile device on you
    npm run build
    ```
 
-## Disclaimer
+## Medical Disclaimer
 
-SidelineSentry is an observational triage and screening aid developed for educational and athletic sideline awareness based on CDC HEADS UP guidance. It is not an FDA-cleared diagnostic device and does not replace evaluation by a qualified medical professional. If a concussion is suspected, the athlete must be removed from play immediately ("When in doubt, sit them out") and referred to a licensed healthcare provider.
+SidelineSentry is an observational screening aid designed for youth athletic safety awareness and education based on CDC HEADS UP materials. It is not an FDA-cleared diagnostic medical device and cannot diagnose concussions or traumatic brain injuries. Any athlete with a suspected concussion must be removed from practice or competition immediately ("When in doubt, sit them out") and seen in person by a licensed healthcare professional before returning to play.

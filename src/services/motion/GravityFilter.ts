@@ -59,6 +59,7 @@ export class PosturalSwayFilter {
   private xFilter: HighPassFilter;
   private yFilter: HighPassFilter;
   private zFilter: HighPassFilter;
+  private result = { x: 0, y: 0, z: 0, magnitude: 0, planarMagnitude: 0 };
 
   constructor(alpha: number = 0.9502, cutoffHz: number = 0.5) {
     const safeCutoff = Math.max(0.01, Number.isFinite(cutoffHz) ? cutoffHz : 0.5);
@@ -79,9 +80,14 @@ export class PosturalSwayFilter {
 
     // Planar sway magnitude from horizontal axes
     const planarMagnitude = Math.sqrt(fx * fx + fz * fz);
-    const magnitude = planarMagnitude;
 
-    return { x: fx, y: fy, z: fz, magnitude, planarMagnitude };
+    this.result.x = fx;
+    this.result.y = fy;
+    this.result.z = fz;
+    this.result.magnitude = planarMagnitude;
+    this.result.planarMagnitude = planarMagnitude;
+
+    return this.result;
   }
 
   public reset(): void {
