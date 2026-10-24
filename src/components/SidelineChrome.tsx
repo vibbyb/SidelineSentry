@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { AthleteProfile } from '../types/clinical';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
-import { Shield, Globe, ChevronLeft, Users, Activity, FileText, AlertTriangle, Sun } from 'lucide-react';
+import { Shield, Globe, ChevronLeft, Users, Activity, FileText, Sun } from 'lucide-react';
 import { initSunlightMode, toggleSunlightMode } from '../utils/theme';
 import { SHARE_THEME_TEXT } from '../i18n/shareTheme';
 
 export type AssessmentStep = 'red_flags' | 'balance' | 'reaction' | 'king_devick';
-export type AppView = 'roster' | 'screening' | 'verdict';
+export type AppView = 'roster' | 'screening' | 'verdict' | 'reports';
 
 interface AssessmentProgressBarProps {
   step: AssessmentStep;
@@ -68,8 +68,7 @@ export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
   activeAthlete,
   lang,
   onToggleLang,
-  onBack,
-  isEmergencyLockdown = false
+  onBack
 }) => {
   const t = TRANSLATIONS[lang];
   const shareText = SHARE_THEME_TEXT[lang];
@@ -104,19 +103,6 @@ export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
 
   return (
     <>
-      {isEmergencyLockdown && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="bg-red-600 text-white px-4 py-2 text-xs font-bold flex items-center justify-between shrink-0 shadow-sm"
-        >
-          <div className="flex items-center space-x-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{t.emergencyBannerText}</span>
-          </div>
-        </div>
-      )}
-
       {view === 'roster' && (
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2.5">
@@ -218,6 +204,34 @@ export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
           </div>
         </header>
       )}
+
+      {view === 'reports' && (
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3 flex items-center justify-between shrink-0">
+          <button
+            onClick={onBack}
+            className="flex items-center text-xs font-bold text-blue-600 hover:text-blue-800 transition active:scale-95 py-1 pr-2 min-h-[44px]"
+          >
+            <ChevronLeft className="w-4 h-4 stroke-[2.5] -ml-1 mr-0.5" />
+            <span>{t.backToRoster}</span>
+          </button>
+
+          <span className="font-extrabold text-sm tracking-tight text-slate-900">
+            {lang === 'en' ? 'Sideline Reports' : 'Reportes de Banda'}
+          </span>
+
+          <div className="flex items-center gap-1.5">
+            {sunlightToggleBtn}
+            <button
+              onClick={onToggleLang}
+              className="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 transition min-h-[44px] min-w-[44px] flex items-center justify-center"
+              title={lang === 'en' ? 'Cambiar a Español' : 'Switch to English'}
+              aria-label={lang === 'en' ? 'Cambiar a Español' : 'Switch to English'}
+            >
+              {lang === 'en' ? 'ES' : 'EN'}
+            </button>
+          </div>
+        </header>
+      )}
     </>
   );
 };
@@ -266,9 +280,9 @@ export const SidelineBottomNav: React.FC<SidelineBottomNavProps> = ({
 
       <button
         onClick={() => onSelectTab('reports')}
-        aria-current={showHistoryDrawer || view === 'verdict' ? 'page' : undefined}
+        aria-current={view === 'reports' || showHistoryDrawer ? 'page' : undefined}
         className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-lg transition active:scale-95 min-h-[44px] ${
-          showHistoryDrawer || view === 'verdict' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600 font-medium'
+          view === 'reports' || showHistoryDrawer ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600 font-medium'
         }`}
       >
         <FileText className="w-5 h-5 stroke-[2.2]" />

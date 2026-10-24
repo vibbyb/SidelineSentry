@@ -10,11 +10,14 @@ import { TriageVerdict } from './components/TriageVerdict';
 import { ClinicianReportModal } from './components/ClinicianReportModal';
 import { RosterDashboard } from './components/RosterDashboard';
 import { AthleteHistoryDrawer } from './components/AthleteHistoryDrawer';
+import { ReportsView } from './components/ReportsView';
 import { SidelineHeader, SidelineBottomNav, AppView, AssessmentStep } from './components/SidelineChrome';
-import { loadAthletes, saveAthletes, saveAssessment, deleteAthlete } from './services/storage';
+import { loadAthletes, saveAthletes, loadAssessments, saveAssessment, deleteAthlete } from './services/storage';
 import { TRANSLATIONS, SupportedLocale } from './i18n/translations';
 import { ROSTER_TEXT } from './i18n/roster';
-import { ChevronRight } from 'lucide-react';
+import { SHARE_THEME_TEXT } from './i18n/shareTheme';
+import { buildParentShareSummary, shareParentSummary } from './utils/share';
+import { ChevronRight, CheckCircle2, X } from 'lucide-react';
 
 export const INITIAL_ATHLETES: AthleteProfile[] = [
   { id: 'ath-1', name: 'Test Athlete 1', jerseyNumber: '12', sport: 'Football', position: 'Quarterback', baselineDate: '2026-08-15', baselineStabilityIndex: 0.078, baselineReactionTimeMs: 220, baselineKingDevickSeconds: 39.5 },
@@ -66,7 +69,11 @@ export const App: React.FC = () => {
   const [kingDevickScore, setKingDevickScore] = useState<AssessmentRecord['kingDevickScore']>(DEFAULT_KD);
 
   const [latestAssessment, setLatestAssessment] = useState<AssessmentRecord | null>(null);
+  const [assessments, setAssessments] = useState<AssessmentRecord[]>(() => loadAssessments());
+  const [modalReportData, setModalReportData] = useState<{ athlete: AthleteProfile; assessment: AssessmentRecord } | null>(null);
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
+  const [manualShareSummary, setManualShareSummary] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -109,6 +116,7 @@ export const App: React.FC = () => {
   const handleDeleteAthlete = (athleteId: string) => {
     const updated = deleteAthlete(athleteId);
     setAthletes(updated);
+    setAssessments(loadAssessments());
     if (activeAthlete?.id === athleteId) setActiveAthlete(null);
     if (historyAthlete?.id === athleteId) setHistoryAthlete(null);
   };
@@ -120,8 +128,36 @@ export const App: React.FC = () => {
 
   const handleImportRoster = (importedAthletes: AthleteProfile[]) => {
     setAthletes(importedAthletes);
+    setAssessments(loadAssessments());
     if (activeAthlete && !importedAthletes.some(a => a.id === activeAthlete.id)) {
       setActiveAthlete(null);
+    }
+  };
+
+  const handleOpenReportModal = (rec: AssessmentRecord, ath?: AthleteProfile) => {
+    const targetAthlete =
+      ath ||
+      athletes.find(a => a.id === rec.athleteId) ||
+      (activeAthlete?.id === rec.athleteId ? activeAthlete : null) || {
+        id: rec.athleteId,
+        name: 'Athlete',
+        jerseyNumber: '#',
+        sport: 'Athletics',
+        position: 'General'
+      };
+    setModalReportData({ athlete: targetAthlete, assessment: rec });
+    setShowReportModal(true);
+  };
+
+  const handleShareReport = async (rec: AssessmentRecord, ath: AthleteProfile) => {
+    const summaryText = buildParentShareSummary({ ...rec, athlete: ath }, lang);
+    const shareTitle = `${ath.name} - ${SHARE_THEME_TEXT[lang].shareTitle}`;
+    const outcome = await shareParentSummary(summaryText, shareTitle);
+    if (outcome === 'shared' || outcome === 'copied') {
+      setShareToast(SHARE_THEME_TEXT[lang].shareSuccessToast);
+      setTimeout(() => setShareToast(null), 3500);
+    } else if (outcome === 'manual') {
+      setManualShareSummary(summaryText);
     }
   };
 
@@ -146,6 +182,7 @@ export const App: React.FC = () => {
       triage
     };
     saveAssessment(record);
+    setAssessments(loadAssessments());
     setLatestAssessment(record);
     setView('verdict');
   };
@@ -176,6 +213,7 @@ export const App: React.FC = () => {
       triage
     };
     saveAssessment(record);
+    setAssessments(loadAssessments());
     setLatestAssessment(record);
     setView('verdict');
   };
@@ -186,7 +224,7 @@ export const App: React.FC = () => {
       else if (step === 'balance') setStep('red_flags');
       else if (step === 'reaction') setStep('balance');
       else if (step === 'king_devick') setStep('reaction');
-    } else if (view === 'verdict') {
+    } else if (view === 'verdict' || view === 'reports') {
       setView('roster');
     }
   };
@@ -197,8 +235,7 @@ export const App: React.FC = () => {
       if (activeAthlete) setView('screening');
       else if (athletes.length > 0) handleStartTriage(athletes[0]);
     } else if (tab === 'reports') {
-      setHistoryAthlete(activeAthlete || athletes[0]);
-      setShowHistoryDrawer(true);
+      setView('reports');
     }
   };
 
@@ -353,7 +390,11 @@ export const App: React.FC = () => {
               <TriageVerdict
                 athlete={activeAthlete}
                 assessment={latestAssessment}
-                onOpenReport={() => setShowReportModal(true)}
+                onOpenReport={() => {
+                  if (activeAthlete && latestAssessment) {
+                    handleOpenReportModal(latestAssessment, activeAthlete);
+                  }
+                }}
                 onRetest={() => handleStartTriage(activeAthlete, isDemoMode)}
                 onBackToRoster={() => setView('roster')}
                 onSaveAsBaseline={() => {
@@ -381,6 +422,21 @@ export const App: React.FC = () => {
               />
             </div>
           )}
+
+          {view === 'reports' && (
+            <ReportsView
+              assessments={assessments}
+              athletes={athletes}
+              latestAssessment={latestAssessment}
+              activeAthlete={activeAthlete}
+              lang={lang}
+              onOpenReport={(rec, ath) => handleOpenReportModal(rec, ath)}
+              onShareReport={handleShareReport}
+              onPrintReport={(rec, ath) => handleOpenReportModal(rec, ath)}
+              onStartCheck={() => setView('roster')}
+              onStartDemo={handleStartDemo}
+            />
+          )}
         </main>
 
         <SidelineBottomNav
@@ -390,15 +446,22 @@ export const App: React.FC = () => {
           onSelectTab={handleSelectTab}
         />
 
-        {showReportModal && activeAthlete && latestAssessment && (
+        {showReportModal && modalReportData && (
           <ClinicianReportModal
-            athlete={activeAthlete}
-            assessment={latestAssessment}
-            onClose={() => setShowReportModal(false)}
+            athlete={modalReportData.athlete}
+            assessment={modalReportData.assessment}
+            onClose={() => {
+              setShowReportModal(false);
+              setModalReportData(null);
+            }}
             lang={lang}
             onUpdateAssessment={updatedRec => {
-              setLatestAssessment(updatedRec);
+              setModalReportData(prev => (prev ? { ...prev, assessment: updatedRec } : null));
+              if (latestAssessment?.id === updatedRec.id) {
+                setLatestAssessment(updatedRec);
+              }
               saveAssessment(updatedRec);
+              setAssessments(loadAssessments());
             }}
           />
         )}
@@ -409,11 +472,65 @@ export const App: React.FC = () => {
           onClose={() => setShowHistoryDrawer(false)}
           onSelectAssessment={rec => {
             setShowHistoryDrawer(false);
-            setLatestAssessment(rec);
-            setShowReportModal(true);
+            handleOpenReportModal(rec, historyAthlete || undefined);
           }}
           lang={lang}
         />
+
+        {shareToast && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 p-3 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center space-x-2 shadow-lg max-w-xs"
+          >
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>{shareToast}</span>
+          </div>
+        )}
+
+        {manualShareSummary && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="manual-share-dialog-title"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm"
+          >
+            <div className="bg-white border-2 border-slate-900 w-full max-w-lg rounded-2xl p-5 shadow-2xl space-y-3 text-slate-900">
+              <div className="flex items-center justify-between">
+                <h3 id="manual-share-dialog-title" className="text-sm font-bold uppercase tracking-wide">
+                  {SHARE_THEME_TEXT[lang].manualShareTitle}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setManualShareSummary(null)}
+                  className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  aria-label={SHARE_THEME_TEXT[lang].closeManualShare}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-xs text-slate-600">
+                {SHARE_THEME_TEXT[lang].manualShareHelp}
+              </p>
+              <textarea
+                readOnly
+                value={manualShareSummary}
+                onClick={e => (e.target as HTMLTextAreaElement).select()}
+                rows={10}
+                className="w-full p-3 rounded-xl border-2 border-slate-300 font-mono text-xs bg-slate-50 text-slate-900 focus:outline-none focus:border-slate-900 select-all"
+              />
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setManualShareSummary(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold min-h-[44px]"
+                >
+                  {SHARE_THEME_TEXT[lang].closeManualShare}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

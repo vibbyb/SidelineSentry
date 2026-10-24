@@ -1,6 +1,6 @@
 import React from 'react';
 import { AssessmentRecord } from '../types/clinical';
-import { AlertOctagon, CheckSquare, Square, PhoneCall, ShieldAlert, ArrowRight, HelpCircle } from 'lucide-react';
+import { AlertOctagon, CheckSquare, Square, PhoneCall, ShieldAlert, HelpCircle } from 'lucide-react';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
 
 interface RedFlagsChecklistProps {
@@ -13,7 +13,6 @@ interface RedFlagsChecklistProps {
 export const RedFlagsChecklist: React.FC<RedFlagsChecklistProps> = ({
   flags,
   onChange,
-  onEmergencyLockdown,
   lang = 'en'
 }) => {
   const t = TRANSLATIONS[lang];
@@ -100,16 +99,6 @@ export const RedFlagsChecklist: React.FC<RedFlagsChecklistProps> = ({
                   <PhoneCall className="w-3.5 h-3.5" />
                   <span>{t.call911}</span>
                 </a>
-                {onEmergencyLockdown && (
-                  <button
-                    type="button"
-                    onClick={onEmergencyLockdown}
-                    className="flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 text-xs font-bold transition min-h-[44px]"
-                  >
-                    <span>{t.lockdownProceed}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                )}
               </div>
             </div>
           </div>
