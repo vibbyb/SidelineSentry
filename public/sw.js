@@ -1,6 +1,6 @@
 // SidelineSentry Service Worker for offline app shell caching
 
-const CACHE_NAME = 'sidelinesentry-v2';
+const CACHE_NAME = 'sidelinesentry-v3';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
