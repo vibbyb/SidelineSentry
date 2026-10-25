@@ -201,4 +201,59 @@ describe('Reports & Emergency Protocol Flow', () => {
     expect(loaded[0].triage.primaryTriggers).toEqual(['EMERGENCY PROTOCOL: Neck pain or tenderness']);
     expect(loaded[0].triage.primaryTriggers.some(t => t.includes('Skipped'))).toBe(false);
   });
+
+  it('groups reports hierarchically under Sport -> Player -> Reports', () => {
+    const athletesList: AthleteProfile[] = [
+      { id: 'ath-1', name: 'Marcus Vance', jerseyNumber: '12', sport: 'Football', position: 'Quarterback' },
+      { id: 'ath-2', name: 'Liam Chen', jerseyNumber: '7', sport: 'Soccer', position: 'Midfielder' },
+      { id: 'ath-3', name: 'Tyler Ross', jerseyNumber: '18', sport: 'Football', position: 'Running Back' }
+    ];
+
+    const makeRec = (id: string, athleteId: string, timestamp: string): AssessmentRecord => ({
+      id,
+      athleteId,
+      timestamp,
+      isPostImpact: true,
+      balanceScore: { durationSeconds: 15, stabilityIndex: 0.08, peakSway: 0.1, swayHistory: [], valid: true },
+      reactionScore: { averageMs: 230, fastestMs: 220, slowestMs: 240, trials: [], falseStarts: 0, valid: true },
+      kingDevickScore: { durationSeconds: 42.0, errorsCount: 0, completed: true },
+      redFlags: {
+        neckPain: false, doubleVision: false, weaknessOrTingling: false, severeOrIncreasingHeadache: false,
+        seizureOrConvulsion: false, lossOfConsciousness: false, deterioratingConsciousState: false, vomitingRepeated: false,
+        increasingConfusion: false, maddocksVenueFailed: false, maddocksPeriodFailed: false, maddocksScoreFailed: false
+      },
+      triage: {
+        verdict: 'CLEAR_OBSERVED',
+        primaryTriggers: [],
+        swayDegradationPercent: 0,
+        reactionDelayDeltaMs: 0,
+        kingDevickDeltaSeconds: 0,
+        nonDiagnosticDisclaimer: 'Scores normal'
+      }
+    });
+
+    const records = [
+      makeRec('r-1', 'ath-1', '2026-10-25 10:00'),
+      makeRec('r-2', 'ath-1', '2026-10-25 11:00'),
+      makeRec('r-3', 'ath-2', '2026-10-25 12:00'),
+      makeRec('r-4', 'ath-3', '2026-10-25 13:00')
+    ];
+
+    // Build hierarchy
+    const sportMap = new Map<string, Map<string, AssessmentRecord[]>>();
+    for (const rec of records) {
+      const ath = athletesList.find(a => a.id === rec.athleteId);
+      const sport = ath?.sport || 'General';
+      const player = ath?.name || rec.athleteId;
+      if (!sportMap.has(sport)) sportMap.set(sport, new Map());
+      const playerMap = sportMap.get(sport)!;
+      if (!playerMap.has(player)) playerMap.set(player, []);
+      playerMap.get(player)!.push(rec);
+    }
+
+    expect(Array.from(sportMap.keys()).sort()).toEqual(['Football', 'Soccer']);
+    expect(sportMap.get('Football')?.get('Marcus Vance')?.length).toBe(2);
+    expect(sportMap.get('Football')?.get('Tyler Ross')?.length).toBe(1);
+    expect(sportMap.get('Soccer')?.get('Liam Chen')?.length).toBe(1);
+  });
 });

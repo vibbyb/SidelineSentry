@@ -86,7 +86,7 @@ export const RedFlagsChecklist: React.FC<RedFlagsChecklistProps> = ({
             <ShieldAlert className="w-5 h-5 text-red-700 shrink-0 mt-0.5" />
             <div className="flex-1">
               <h4 className="text-xs font-bold uppercase tracking-wider text-red-700">
-                {t.emergencyTriggered} &bull; {t.doNotRunPhysicalTests}
+                {t.emergencyTriggered} | {t.doNotRunPhysicalTests}
               </h4>
               <p className="text-xs text-red-950 mt-1 leading-relaxed font-medium">
                 {t.emergencyLockdownWarning}

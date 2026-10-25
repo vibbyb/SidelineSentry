@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { AthleteProfile, AssessmentRecord, TriageVerdict } from '../types/clinical';
 import { SupportedLocale } from '../i18n/translations';
-import { FileText, Share2, Printer, PlusCircle, AlertOctagon, Clock, Play } from 'lucide-react';
+import { FileText, Printer, PlusCircle, AlertOctagon, Clock, User, ShieldCheck } from 'lucide-react';
 
 interface ReportsViewProps {
   assessments: AssessmentRecord[];
@@ -10,10 +10,10 @@ interface ReportsViewProps {
   activeAthlete: AthleteProfile | null;
   lang: SupportedLocale;
   onOpenReport: (assessment: AssessmentRecord, athlete: AthleteProfile) => void;
-  onShareReport: (assessment: AssessmentRecord, athlete: AthleteProfile) => void;
+  onShareReport?: (assessment: AssessmentRecord, athlete: AthleteProfile) => void;
   onPrintReport: (assessment: AssessmentRecord, athlete: AthleteProfile) => void;
   onStartCheck: () => void;
-  onStartDemo: () => void;
+  onStartDemo?: () => void;
 }
 
 const TEXT = {
@@ -23,11 +23,9 @@ const TEXT = {
     latestCheckTitle: 'Most Recent Assessment',
     allReportsTitle: 'All Saved Reports',
     emptyTitle: 'No sideline reports saved yet',
-    emptyDesc: 'Complete a sideline checkup or run a simulated test to generate clinician-ready safety reports and parent summaries.',
+    emptyDesc: 'Complete a sideline checkup to generate safety reports and summaries.',
     startCheck: 'Start a Check',
-    tryDemo: 'Try a Demo',
-    viewFullReport: 'View Full Report',
-    shareWithParent: 'Share with Parent',
+    viewFullReport: 'View Report',
     print: 'Print',
     startNewCheck: 'New Sideline Check',
     emergencyStop: 'Emergency Stop',
@@ -42,9 +40,11 @@ const TEXT = {
     signed: 'Signed',
     totalReports: '{count} total reports',
     activeSessionBadge: 'Latest Check',
-    noBaselineMargin: 'Normative baseline used (+15% safety margin)',
     warningSignsFound: '{count} warning sign(s) observed',
-    athleteFallback: 'Athlete'
+    athleteFallback: 'Athlete',
+    allSports: 'All Sports',
+    reportCountSingular: '1 report',
+    reportCountPlural: '{count} reports'
   },
   es: {
     pageTitle: 'Reportes Guardados',
@@ -52,11 +52,9 @@ const TEXT = {
     latestCheckTitle: 'Evaluación Más Reciente',
     allReportsTitle: 'Todos los Reportes Guardados',
     emptyTitle: 'Aún no hay reportes guardados',
-    emptyDesc: 'Complete un chequeo en la banda o realice una prueba simulada para generar reportes médicos y resúmenes para padres.',
+    emptyDesc: 'Complete un chequeo en la banda para generar reportes médicos y resúmenes.',
     startCheck: 'Iniciar una Evaluación',
-    tryDemo: 'Probar una Demo',
-    viewFullReport: 'Ver Informe Completo',
-    shareWithParent: 'Compartir con Padres',
+    viewFullReport: 'Ver Reporte',
     print: 'Imprimir',
     startNewCheck: 'Nueva Evaluación',
     emergencyStop: 'Parada de Emergencia',
@@ -71,9 +69,11 @@ const TEXT = {
     signed: 'Firmado',
     totalReports: '{count} reportes en total',
     activeSessionBadge: 'Último Chequeo',
-    noBaselineMargin: 'Línea de base normativa (+15% margen de seguridad)',
     warningSignsFound: '{count} señal(es) de alarma observadas',
-    athleteFallback: 'Atleta'
+    athleteFallback: 'Atleta',
+    allSports: 'Todos los Deportes',
+    reportCountSingular: '1 reporte',
+    reportCountPlural: '{count} reportes'
   }
 };
 
@@ -141,12 +141,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   activeAthlete,
   lang,
   onOpenReport,
-  onShareReport,
   onPrintReport,
-  onStartCheck,
-  onStartDemo
+  onStartCheck
 }) => {
   const t = TEXT[lang];
+  const [selectedSport, setSelectedSport] = useState<string>('ALL');
 
   // Helper to find matching athlete or build a safe fallback
   const resolveAthlete = (athleteId: string): AthleteProfile => {
@@ -163,7 +162,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   };
 
   // Combine assessments ensuring unique by id, newest first
-  const allReports = React.useMemo(() => {
+  const allReports = useMemo(() => {
     const map = new Map<string, AssessmentRecord>();
     if (latestAssessment) {
       map.set(latestAssessment.id, latestAssessment);
@@ -175,6 +174,41 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     }
     return Array.from(map.values());
   }, [assessments, latestAssessment]);
+
+  // Group reports hierarchically: Sport -> Player -> Reports
+  const { sportsList, groupedBySport } = useMemo(() => {
+    const sportMap = new Map<string, Map<string, { athlete: AthleteProfile; reports: AssessmentRecord[] }>>();
+
+    for (const rec of allReports) {
+      const athlete = resolveAthlete(rec.athleteId);
+      const sportName = athlete.sport ? athlete.sport.trim() : 'Athletics';
+      const playerId = athlete.id || athlete.name;
+
+      if (!sportMap.has(sportName)) {
+        sportMap.set(sportName, new Map());
+      }
+      const playerMap = sportMap.get(sportName)!;
+
+      if (!playerMap.has(playerId)) {
+        playerMap.set(playerId, { athlete, reports: [] });
+      }
+      playerMap.get(playerId)!.reports.push(rec);
+    }
+
+    const sports = Array.from(sportMap.keys()).sort((a, b) => a.localeCompare(b));
+    return { sportsList: sports, groupedBySport: sportMap };
+  }, [allReports, athletes, activeAthlete]);
+
+  // Filter sports based on pill selection
+  const displayedSports = useMemo(() => {
+    if (selectedSport === 'ALL') return sportsList;
+    return sportsList.filter(s => s === selectedSport);
+  }, [sportsList, selectedSport]);
+
+  const formatReportCount = (count: number) => {
+    if (count === 1) return t.reportCountSingular;
+    return t.reportCountPlural.replace('{count}', String(count));
+  };
 
   // Empty state if no reports recorded yet
   if (allReports.length === 0) {
@@ -193,7 +227,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 max-w-xs mx-auto">
+        <div className="flex items-center justify-center pt-2 max-w-xs mx-auto">
           <button
             type="button"
             onClick={onStartCheck}
@@ -201,14 +235,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           >
             <PlusCircle className="w-4 h-4" />
             <span>{t.startCheck}</span>
-          </button>
-          <button
-            type="button"
-            onClick={onStartDemo}
-            className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-300 transition active:scale-[0.98] min-h-[44px]"
-          >
-            <Play className="w-4 h-4 text-slate-600" />
-            <span>{t.tryDemo}</span>
           </button>
         </div>
       </div>
@@ -238,160 +264,255 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </button>
       </div>
 
-      {/* Report Cards List */}
-      <div className="space-y-3">
-        {allReports.map((rec, idx) => {
-          const athlete = resolveAthlete(rec.athleteId);
-          const verdict = getVerdictInfo(rec, lang);
-          const isLatest = latestAssessment && latestAssessment.id === rec.id;
+      {/* Sport Filter Pill Bar */}
+      {sportsList.length > 0 && (
+        <div
+          role="toolbar"
+          aria-label="Sport filter"
+          className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar"
+        >
+          <button
+            type="button"
+            onClick={() => setSelectedSport('ALL')}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition shrink-0 min-h-[38px] ${
+              selectedSport === 'ALL'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {t.allSports} ({allReports.length})
+          </button>
+          {sportsList.map(sportName => {
+            const playerMap = groupedBySport.get(sportName);
+            let count = 0;
+            if (playerMap) {
+              for (const entry of playerMap.values()) {
+                count += entry.reports.length;
+              }
+            }
+            const isSelected = selectedSport === sportName;
+            return (
+              <button
+                key={sportName}
+                type="button"
+                onClick={() => setSelectedSport(sportName)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition shrink-0 min-h-[38px] ${
+                  isSelected
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {sportName} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Hierarchical Grouping: Level 1 (Sport) -> Level 2 (Player) -> Level 3 (Reports) */}
+      <div className="space-y-6">
+        {displayedSports.map(sportName => {
+          const playerMap = groupedBySport.get(sportName);
+          if (!playerMap || playerMap.size === 0) return null;
+
+          const playerEntries = Array.from(playerMap.values());
+          const totalSportReports = playerEntries.reduce((sum, p) => sum + p.reports.length, 0);
 
           return (
-            <div
-              key={rec.id || idx}
-              className={`rounded-2xl border bg-white shadow-xs p-4 space-y-3 transition ${
-                isLatest ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200'
-              }`}
+            <section
+              key={sportName}
+              data-testid={`sport-section-${sportName.toLowerCase().replace(/\s+/g, '-')}`}
+              className="space-y-3"
             >
-              {/* Card Header: Athlete & Verdict */}
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-sm text-slate-900">
-                      {athlete.name}
-                    </span>
-                    {athlete.jerseyNumber && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 text-white font-mono font-bold">
-                        #{athlete.jerseyNumber}
-                      </span>
-                    )}
-                    {isLatest && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold uppercase tracking-wider">
-                        {t.activeSessionBadge}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                    {athlete.sport} {athlete.position ? `• ${athlete.position}` : ''}
-                  </div>
+              {/* Level 1: Sport Category Header */}
+              <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-100 border border-slate-200">
+                <div className="flex items-center space-x-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                    {sportName}
+                  </h3>
                 </div>
-
-                <span
-                  className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider whitespace-nowrap ${verdict.badgeBg}`}
-                >
-                  {verdict.label}
+                <span className="text-[11px] font-bold text-slate-500 font-mono">
+                  {formatReportCount(totalSportReports)}
                 </span>
               </div>
 
-              {/* Timestamp & Warning info */}
-              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100 font-mono">
-                <span className="flex items-center gap-1 font-sans">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{rec.timestamp || 'Recorded session'}</span>
-                </span>
-                {(() => {
-                  const actualTriggers = (rec.triage?.primaryTriggers || []).filter(
-                    trig => !/skipped|omitid/i.test(trig)
-                  );
-                  if (actualTriggers.length === 0) return null;
-                  const warningText =
-                    lang === 'es'
-                      ? actualTriggers.length === 1
-                        ? '1 señal de alarma'
-                        : `${actualTriggers.length} señales de alarma`
-                      : actualTriggers.length === 1
-                      ? '1 warning'
-                      : `${actualTriggers.length} warnings`;
+              {/* Level 2: Inside Sport Section, Group by Athlete */}
+              <div className="space-y-4 pl-1 sm:pl-2">
+                {playerEntries.map(({ athlete, reports }) => {
                   return (
-                    <span className="text-red-700 font-sans font-bold flex items-center gap-1">
-                      <AlertOctagon className="w-3.5 h-3.5" />
-                      <span>{warningText}</span>
-                    </span>
+                    <div
+                      key={athlete.id}
+                      data-testid={`player-card-${athlete.id}`}
+                      className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3 sm:p-4 space-y-3"
+                    >
+                      {/* Player Category Header */}
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                            {athlete.jerseyNumber ? `#${athlete.jerseyNumber}` : <User className="w-4 h-4" />}
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-extrabold text-sm text-slate-900">
+                                {athlete.name}
+                              </span>
+                              {athlete.position && (
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold">
+                                  {athlete.position}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              {athlete.sport} | #{athlete.jerseyNumber || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className="text-[11px] font-bold text-slate-600 font-mono">
+                          {formatReportCount(reports.length)}
+                        </span>
+                      </div>
+
+                      {/* Level 3: Player's Reports */}
+                      <div className="space-y-3">
+                        {reports.map((rec, rIdx) => {
+                          const verdict = getVerdictInfo(rec, lang);
+                          const isLatest = latestAssessment && latestAssessment.id === rec.id;
+
+                          return (
+                            <div
+                              key={rec.id || rIdx}
+                              data-testid="report-card"
+                              className={`rounded-xl border bg-white shadow-xs p-3.5 space-y-2.5 transition ${
+                                isLatest ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200'
+                              }`}
+                            >
+                              {/* Report Header: Recommendation badge & status */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span
+                                    className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider whitespace-nowrap ${verdict.badgeBg}`}
+                                  >
+                                    {verdict.label}
+                                  </span>
+                                  {isLatest && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold uppercase tracking-wider">
+                                      {t.activeSessionBadge}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <span className="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
+                                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>{rec.timestamp || 'Recorded session'}</span>
+                                </span>
+                              </div>
+
+                              {/* Warning count info excluding skipped tests */}
+                              {(() => {
+                                const actualTriggers = (rec.triage?.primaryTriggers || []).filter(
+                                  trig => !/skipped|omitid/i.test(trig)
+                                );
+                                if (actualTriggers.length === 0) return null;
+                                const warningText =
+                                  lang === 'es'
+                                    ? actualTriggers.length === 1
+                                      ? '1 señal de alarma'
+                                      : `${actualTriggers.length} señales de alarma`
+                                    : actualTriggers.length === 1
+                                    ? '1 warning'
+                                    : `${actualTriggers.length} warnings`;
+                                return (
+                                  <div className="text-red-700 font-sans text-xs font-bold flex items-center gap-1 pt-0.5">
+                                    <AlertOctagon className="w-3.5 h-3.5 shrink-0" />
+                                    <span>{warningText}</span>
+                                  </div>
+                                );
+                              })()}
+
+                              {/* Score snapshot grid */}
+                              <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+                                <div className="bg-slate-50 rounded-lg p-2 border border-slate-200 text-center">
+                                  <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                                    {t.swayDegradation}
+                                  </div>
+                                  <div className="text-xs font-mono font-extrabold text-slate-900 mt-0.5">
+                                    {rec.balanceScore?.skippedReason
+                                      ? 'N/A'
+                                      : `${(rec.triage?.swayDegradationPercent ?? 0) > 0 ? '+' : ''}${(rec.triage?.swayDegradationPercent ?? 0).toFixed(0)}%`}
+                                  </div>
+                                </div>
+
+                                <div className="bg-slate-50 rounded-lg p-2 border border-slate-200 text-center">
+                                  <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                                    {t.reactionDelay}
+                                  </div>
+                                  <div className="text-xs font-mono font-extrabold text-slate-900 mt-0.5">
+                                    {rec.reactionScore?.skippedReason
+                                      ? 'N/A'
+                                      : `${(rec.triage?.reactionDelayDeltaMs ?? 0) > 0 ? '+' : ''}${rec.triage?.reactionDelayDeltaMs ?? 0}ms`}
+                                  </div>
+                                </div>
+
+                                <div className="bg-slate-50 rounded-lg p-2 border border-slate-200 text-center">
+                                  <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                                    {t.kdDelta}
+                                  </div>
+                                  <div className="text-xs font-mono font-extrabold text-slate-900 mt-0.5">
+                                    {rec.kingDevickScore?.skippedReason
+                                      ? 'N/A'
+                                      : `${(rec.triage?.kingDevickDeltaSeconds ?? 0) > 0 ? '+' : ''}${(rec.triage?.kingDevickDeltaSeconds ?? 0).toFixed(1)}s`}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Evaluator attestation status if present */}
+                              {rec.certification && (
+                                <div className="text-[10px] text-slate-600 flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 font-medium">
+                                  <span>
+                                    {t.evaluator}: <strong className="text-slate-900 font-bold">{rec.certification.evaluatorName}</strong> ({rec.certification.credential})
+                                  </span>
+                                  {rec.certification.signatureDataUrl && (
+                                    <span className="text-emerald-700 font-mono text-[9px] font-bold flex items-center gap-1">
+                                      <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                                      <span>{t.signed}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Action Buttons: View Report & Print */}
+                              <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenReport(rec, athlete)}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition active:scale-95 min-h-[44px]"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  <span>{t.viewFullReport}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => onPrintReport(rec, athlete)}
+                                  className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-200 transition active:scale-95 min-h-[44px]"
+                                  title={t.print}
+                                  aria-label={t.print}
+                                >
+                                  <Printer className="w-3.5 h-3.5 text-slate-600" />
+                                  <span className="hidden sm:inline">{t.print}</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
-                })()}
+                })}
               </div>
-
-              {/* Score snapshot grid */}
-              <div className="grid grid-cols-3 gap-1.5 pt-1">
-                <div className="bg-slate-50 rounded-lg p-2 border border-slate-200 text-center">
-                  <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
-                    {t.swayDegradation}
-                  </div>
-                  <div className="text-xs font-mono font-extrabold text-slate-900 mt-0.5">
-                    {rec.balanceScore?.skippedReason
-                      ? 'N/A'
-                      : `${(rec.triage?.swayDegradationPercent ?? 0) > 0 ? '+' : ''}${(rec.triage?.swayDegradationPercent ?? 0).toFixed(0)}%`}
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 rounded-lg p-2 border border-slate-200 text-center">
-                  <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
-                    {t.reactionDelay}
-                  </div>
-                  <div className="text-xs font-mono font-extrabold text-slate-900 mt-0.5">
-                    {rec.reactionScore?.skippedReason
-                      ? 'N/A'
-                      : `${(rec.triage?.reactionDelayDeltaMs ?? 0) > 0 ? '+' : ''}${rec.triage?.reactionDelayDeltaMs ?? 0}ms`}
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 rounded-lg p-2 border border-slate-200 text-center">
-                  <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
-                    {t.kdDelta}
-                  </div>
-                  <div className="text-xs font-mono font-extrabold text-slate-900 mt-0.5">
-                    {rec.kingDevickScore?.skippedReason
-                      ? 'N/A'
-                      : `${(rec.triage?.kingDevickDeltaSeconds ?? 0) > 0 ? '+' : ''}${(rec.triage?.kingDevickDeltaSeconds ?? 0).toFixed(1)}s`}
-                  </div>
-                </div>
-              </div>
-
-              {/* Evaluator attestation status if present */}
-              {rec.certification && (
-                <div className="text-[10px] text-slate-600 flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 font-medium">
-                  <span>
-                    {t.evaluator}: <strong className="text-slate-900 font-bold">{rec.certification.evaluatorName}</strong> ({rec.certification.credential})
-                  </span>
-                  {rec.certification.signatureDataUrl && (
-                    <span className="text-emerald-700 font-mono text-[9px] font-bold">&bull; {t.signed}</span>
-                  )}
-                </div>
-              )}
-
-              {/* Action Buttons: View Full Report, Share, Print */}
-              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => onOpenReport(rec, athlete)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition active:scale-95 min-h-[44px]"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>{t.viewFullReport}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onShareReport(rec, athlete)}
-                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition active:scale-95 min-h-[44px]"
-                  title={t.shareWithParent}
-                  aria-label={t.shareWithParent}
-                >
-                  <Share2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="hidden sm:inline">{t.shareWithParent}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onPrintReport(rec, athlete)}
-                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-200 transition active:scale-95 min-h-[44px]"
-                  title={t.print}
-                  aria-label={t.print}
-                >
-                  <Printer className="w-3.5 h-3.5 text-slate-600" />
-                  <span className="hidden sm:inline">{t.print}</span>
-                </button>
-              </div>
-            </div>
+            </section>
           );
         })}
       </div>

@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AthleteProfile, AssessmentRecord } from '../types/clinical';
-import { Printer, Copy, Check, X, Shield, CheckCircle2, Share2 } from 'lucide-react';
+import { Printer, Copy, Check, X, Shield, CheckCircle2 } from 'lucide-react';
 import { SignatureCanvas } from './SignatureCanvas';
 import { generateSessionHash } from '../services/security/sessionHash';
 import { copyToClipboard } from '../utils/clipboard';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
 import { translateTrigger } from '../i18n/triggerTranslator';
-import { buildParentShareSummary, shareParentSummary } from '../utils/share';
-import { SHARE_THEME_TEXT } from '../i18n/shareTheme';
 import {
   EvaluatorReportInfo,
   formatPlainTextReport,
@@ -30,23 +28,8 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
   onUpdateAssessment
 }) => {
   const t = TRANSLATIONS[lang];
-  const shareText = SHARE_THEME_TEXT[lang];
   const [copied, setCopied] = useState<boolean>(false);
-  const [shareToast, setShareToast] = useState<string | null>(null);
-  const [manualShareSummary, setManualShareSummary] = useState<string | null>(null);
   const copiedTimeoutRef = useRef<number | null>(null);
-
-  const handleShareWithParent = async () => {
-    const summaryText = buildParentShareSummary({ ...assessment, athlete }, lang);
-    const shareTitle = `${athlete.name} - ${shareText.shareTitle}`;
-    const outcome = await shareParentSummary(summaryText, shareTitle);
-    if (outcome === 'shared' || outcome === 'copied') {
-      setShareToast(shareText.shareSuccessToast);
-      setTimeout(() => setShareToast(null), 3500);
-    } else if (outcome === 'manual') {
-      setManualShareSummary(summaryText);
-    }
-  };
 
   const [notes, setNotes] = useState<string>(() => getSportBiomechanicsNote(athlete.sport, lang));
   const [evaluatorName, setEvaluatorName] = useState<string>(assessment.certification?.evaluatorName || '');
@@ -158,7 +141,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
   const demographics = [
     { label: t.athleteNameLabel, value: athlete.name, mono: false },
     { label: t.jerseyIdLabel, value: `#${athlete.jerseyNumber}`, mono: true },
-    { label: t.sportPositionLabel, value: `${athlete.sport} • ${athlete.position}`, mono: false },
+    { label: t.sportPositionLabel, value: `${athlete.sport} | ${athlete.position}`, mono: false },
     { label: t.baselineDateLabel, value: athlete.baselineDate || t.preseasonCertified, mono: true }
   ];
 
@@ -178,15 +161,6 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleShareWithParent}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-xs text-white border border-emerald-600 font-bold transition min-h-[44px]"
-              title={shareText.shareWithParentBtn}
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              <span>{shareText.shareWithParentBtn}</span>
-            </button>
             <button
               onClick={handleCopySummary}
               className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 font-bold transition min-h-[44px]"
@@ -210,17 +184,6 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             </button>
           </div>
         </div>
-
-        {shareToast && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="bg-emerald-600 text-white px-6 py-2.5 text-xs font-bold flex items-center space-x-2 shrink-0 print:hidden shadow-xs"
-          >
-            <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
-            <span>{shareToast}</span>
-          </div>
-        )}
 
         {/* Printable Report Content */}
         <div className="p-6 sm:p-8 space-y-6 max-h-[80vh] overflow-y-auto bg-white text-slate-900 print:max-h-none print:overflow-visible print:p-0">
@@ -278,7 +241,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
                 <div className="mt-2 text-xs font-bold space-y-0.5">
                   <div>{t.observedTriggersHeader}</div>
                   {actualTriggers.map((tItem, idx) => (
-                    <div key={idx} className="pl-2 text-red-700 print:text-red-700">• {translateTrigger(tItem, lang)}</div>
+                    <div key={idx} className="pl-2 text-red-700 print:text-red-700">- {translateTrigger(tItem, lang)}</div>
                   ))}
                 </div>
               );
@@ -349,6 +312,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
                 initialSignature={signatureUrl}
                 lang={lang}
                 onChange={url => setSignatureUrl(url)}
+                onSignatureChange={url => setSignatureUrl(url || null)}
               />
               {signatureUrl && (
                 <div className="text-[10px] text-emerald-700 flex items-center space-x-1 mt-1 font-mono font-bold">
@@ -363,19 +327,9 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
 
           {/* Parent & Caregiver Directives */}
           <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 print:bg-gray-100 print:border-gray-300 text-xs space-y-2 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h4 className="font-bold text-blue-950 print:text-black flex items-center space-x-1.5">
-                <span>{t.parentInstructionsTitle}</span>
-              </h4>
-              <button
-                type="button"
-                onClick={handleShareWithParent}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs transition print:hidden min-h-[44px]"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>{shareText.shareWithParentBtn}</span>
-              </button>
-            </div>
+            <h4 className="font-bold text-blue-950 print:text-black">
+              <span>{t.parentInstructionsTitle}</span>
+            </h4>
             <p className="text-blue-900 print:text-gray-700 leading-relaxed text-[11px] font-medium">{t.parentInstructionsText}</p>
           </div>
 
@@ -395,50 +349,6 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
           </div>
         </div>
       </div>
-
-      {manualShareSummary && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="manual-share-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm print:hidden"
-        >
-          <div className="bg-white border-2 border-slate-900 w-full max-w-lg rounded-2xl p-5 shadow-2xl space-y-3 text-slate-900">
-            <div className="flex items-center justify-between">
-              <h3 id="manual-share-modal-title" className="text-sm font-bold uppercase tracking-wide">
-                {shareText.manualShareTitle}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setManualShareSummary(null)}
-                className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                aria-label={shareText.closeManualShare}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-xs text-slate-600">
-              {shareText.manualShareHelp}
-            </p>
-            <textarea
-              readOnly
-              value={manualShareSummary}
-              onClick={e => (e.target as HTMLTextAreaElement).select()}
-              rows={10}
-              className="w-full p-3 rounded-xl border-2 border-slate-300 font-mono text-xs bg-slate-50 text-slate-900 focus:outline-none focus:border-slate-900 select-all"
-            />
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setManualShareSummary(null)}
-                className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold min-h-[44px]"
-              >
-                {shareText.closeManualShare}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

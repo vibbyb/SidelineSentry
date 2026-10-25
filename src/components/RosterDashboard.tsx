@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AthleteProfile } from '../types/clinical';
-import { Plus, Search, ChevronRight, History, Trash2, Download, Upload, Play, RotateCcw } from 'lucide-react';
-import { getAthleteHistory, exportBackupData, importBackupData } from '../services/storage';
+import { Plus, Search, ChevronRight, History, Trash2, RotateCcw } from 'lucide-react';
+import { getAthleteHistory } from '../services/storage';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
 import { ROSTER_TEXT } from '../i18n/roster';
 
@@ -11,8 +11,6 @@ interface RosterDashboardProps {
   onAddAthlete: (athlete: AthleteProfile) => void;
   onDeleteAthlete?: (athleteId: string) => void;
   onRestoreDefaults?: () => void;
-  onImportRoster?: (athletes: AthleteProfile[]) => void;
-  onStartDemo?: () => void;
   onOpenHistory?: (athlete: AthleteProfile) => void;
   lang?: SupportedLocale;
   autoOpenAddModal?: boolean;
@@ -25,8 +23,6 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
   onAddAthlete,
   onDeleteAthlete,
   onRestoreDefaults,
-  onImportRoster,
-  onStartDemo,
   onOpenHistory,
   lang = 'en',
   autoOpenAddModal,
@@ -34,7 +30,6 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
   const rText = ROSTER_TEXT[lang];
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [search, setSearch] = useState<string>('');
   const [selectedSport, setSelectedSport] = useState<string>('ALL');
@@ -46,8 +41,6 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
     }
   }, [autoOpenAddModal]);
   const [athleteToDelete, setAthleteToDelete] = useState<AthleteProfile | null>(null);
-  const [pendingImportData, setPendingImportData] = useState<{ rawJson: string; athleteCount: number } | null>(null);
-  const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Form State
   const [newName, setNewName] = useState<string>('');
@@ -78,85 +71,12 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (athleteToDelete) setAthleteToDelete(null);
-        else if (pendingImportData) setPendingImportData(null);
         else if (showAddModal) handleDismissAddModal();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [athleteToDelete, pendingImportData, showAddModal]);
-
-  const handleExport = () => {
-    try {
-      const json = exportBackupData();
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `sidelinesentry-backup-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Failed to export roster backup:', err);
-    }
-  };
-
-  const handleTriggerImport = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-      fileInputRef.current.click();
-    }
-  };
-
-  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = event => {
-      const text = event.target?.result;
-      if (typeof text !== 'string') return;
-      try {
-        const parsed = JSON.parse(text);
-        if (
-          !parsed ||
-          typeof parsed !== 'object' ||
-          Array.isArray(parsed) ||
-          parsed.app !== 'SidelineSentry' ||
-          parsed.version !== 1 ||
-          !Array.isArray(parsed.athletes) ||
-          !Array.isArray(parsed.assessments)
-        ) {
-          setImportStatus({ type: 'error', message: rText.importError });
-          return;
-        }
-        for (const a of parsed.athletes) {
-          if (!a || typeof a !== 'object' || typeof a.id !== 'string' || typeof a.name !== 'string') {
-            setImportStatus({ type: 'error', message: rText.importError });
-            return;
-          }
-        }
-        setPendingImportData({ rawJson: text, athleteCount: parsed.athletes.length });
-      } catch {
-        setImportStatus({ type: 'error', message: rText.importError });
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleConfirmImport = () => {
-    if (!pendingImportData) return;
-    const result = importBackupData(pendingImportData.rawJson);
-    if (result.ok && result.athletes) {
-      onImportRoster?.(result.athletes);
-      setImportStatus({ type: 'success', message: rText.importSuccess });
-    } else {
-      setImportStatus({ type: 'error', message: result.error || rText.importError });
-    }
-    setPendingImportData(null);
-  };
+  }, [athleteToDelete, showAddModal]);
 
   const filteredAthletes = athletes.filter(a => {
     const matchesSearch =
@@ -193,33 +113,6 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
 
   return (
     <div className="space-y-3.5">
-      {/* Demo Mode Quick Start Banner */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl p-3.5 shadow-xs flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center space-x-1.5">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
-              CDC HEADS UP
-            </span>
-            <h3 className="text-xs font-bold text-slate-900 truncate">
-              {rText.demoModeBadge}
-            </h3>
-          </div>
-          <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-            {rText.demoBannerDesc}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onStartDemo}
-          className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition active:scale-95 shrink-0 min-h-[44px]"
-          title={rText.tryDemoBtn}
-          aria-label={rText.tryDemoBtn}
-        >
-          <Play className="w-3.5 h-3.5 fill-current" />
-          <span>{rText.tryDemoBtn}</span>
-        </button>
-      </div>
-
       {/* Search and Sport Filter */}
       <div className="space-y-2">
         <div className="flex items-center gap-1.5">
@@ -243,55 +136,7 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
             <Plus className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{t.addBtn}</span>
           </button>
-          <button
-            type="button"
-            onClick={handleExport}
-            className="flex items-center space-x-1 px-2.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs shadow-xs transition shrink-0 active:scale-95 min-h-[44px] min-w-[44px] justify-center"
-            title={rText.exportRosterBtn}
-            aria-label={rText.exportRosterBtn}
-          >
-            <Download className="w-4 h-4 text-slate-600" />
-            <span className="sr-only sm:not-sr-only sm:inline text-[11px]">{rText.exportRosterBtn}</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleTriggerImport}
-            className="flex items-center space-x-1 px-2.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs shadow-xs transition shrink-0 active:scale-95 min-h-[44px] min-w-[44px] justify-center"
-            title={rText.importRosterBtn}
-            aria-label={rText.importRosterBtn}
-          >
-            <Upload className="w-4 h-4 text-slate-600" />
-            <span className="sr-only sm:not-sr-only sm:inline text-[11px]">{rText.importRosterBtn}</span>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={handleFileSelected}
-          />
         </div>
-
-        {/* Feedback message banner */}
-        {importStatus && (
-          <div
-            role="status"
-            className={`p-3 rounded-xl text-xs font-semibold flex items-center justify-between border ${
-              importStatus.type === 'success'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : 'bg-red-50 border-red-200 text-red-800'
-            }`}
-          >
-            <span>{importStatus.message}</span>
-            <button
-              type="button"
-              onClick={() => setImportStatus(null)}
-              className="text-xs font-bold underline ml-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-            >
-              {rText.cancel}
-            </button>
-          </div>
-        )}
 
         {/* Sport Filter Pills */}
         <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 -mx-1 px-1">
@@ -360,7 +205,7 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
                         {athlete.name}
                       </h3>
                       <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                        {sportLabels[athlete.sport]?.[lang] || athlete.sport} • {athlete.position}
+                        {sportLabels[athlete.sport]?.[lang] || athlete.sport} | {athlete.position}
                       </div>
                     </div>
                   </div>
@@ -465,53 +310,6 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
                 className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition min-h-[44px]"
               >
                 {rText.deleteAthleteConfirm}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Import Roster Confirmation Modal */}
-      {pendingImportData && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="import-confirm-modal-title"
-        >
-          <div className="bg-white border border-slate-300 w-full max-w-sm rounded-2xl p-5 shadow-2xl relative space-y-4">
-            <div className="flex items-start space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                <Upload className="w-5 h-5 stroke-[2.2]" />
-              </div>
-              <div>
-                <h3 id="import-confirm-modal-title" className="text-base font-bold text-slate-900">
-                  {rText.importConfirmTitle}
-                </h3>
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  {pendingImportData.athleteCount} athletes found in backup file
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed bg-amber-50 border border-amber-200 rounded-xl p-3">
-              {rText.importConfirmWarning}
-            </p>
-
-            <div className="flex items-center justify-end space-x-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => setPendingImportData(null)}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition min-h-[44px]"
-              >
-                {rText.cancel}
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmImport}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition min-h-[44px]"
-              >
-                {rText.importConfirmAction}
               </button>
             </div>
           </div>
@@ -647,8 +445,10 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium">
-                  <strong>{t.schoolSafetyMarginActive}</strong> {t.schoolSafetyMarginActiveDesc}
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium">
+                  {lang === 'es'
+                    ? 'Se usarán valores típicos de referencia para este atleta.'
+                    : 'Typical reference values will be used for this athlete.'}
                 </div>
               )}
 

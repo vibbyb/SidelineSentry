@@ -72,7 +72,7 @@ export const AthleteHistoryDrawer: React.FC<AthleteHistoryDrawerProps> = ({
                 </span>
               </h2>
               <div className="text-xs text-slate-600 mt-0.5 font-medium">
-                {athlete.sport} &bull; {athlete.position}
+                {athlete.sport} | {athlete.position}
               </div>
             </div>
 
@@ -342,7 +342,7 @@ export const AthleteHistoryDrawer: React.FC<AthleteHistoryDrawerProps> = ({
                               {t.attestedBy} <strong className="text-slate-900 font-bold">{record.certification.evaluatorName}</strong> ({record.certification.credential})
                             </span>
                             {record.certification.signatureDataUrl && (
-                              <span className="text-emerald-700 font-mono text-[9px] font-bold">&bull; {t.signedBadge}</span>
+                              <span className="text-emerald-700 font-mono text-[9px] font-bold">{t.signedBadge}</span>
                             )}
                           </div>
                         )}

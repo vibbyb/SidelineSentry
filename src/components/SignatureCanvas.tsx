@@ -3,7 +3,8 @@ import { RotateCcw, PenTool } from 'lucide-react';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
 
 interface SignatureCanvasProps {
-  onChange: (signatureDataUrl: string | null) => void;
+  onChange?: (signatureDataUrl: string | null) => void;
+  onSignatureChange?: (signatureDataUrl: string) => void;
   label?: string;
   clearLabel?: string;
   initialSignature?: string | null;
@@ -12,6 +13,7 @@ interface SignatureCanvasProps {
 
 export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
   onChange,
+  onSignatureChange,
   label,
   clearLabel,
   initialSignature,
@@ -25,12 +27,13 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [isDrawing, setIsDrawing] = useState<boolean>(false);
+  const isDrawingRef = useRef<boolean>(false);
   const [hasDrawn, setHasDrawn] = useState<boolean>(Boolean(initialSignature));
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const lastWidthRef = useRef<number>(0);
   const hasDrawnRef = useRef<boolean>(Boolean(initialSignature));
   hasDrawnRef.current = hasDrawn;
+  const isClearedRef = useRef<boolean>(false);
 
   const initCanvas = useCallback((force: boolean = false) => {
     const canvas = canvasRef.current;
@@ -44,10 +47,12 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
 
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
     let savedData: string | null = null;
-    if (canvas.width > 0 && canvas.height > 0 && hasDrawnRef.current) {
-      savedData = canvas.toDataURL('image/png');
-    } else if (initialSignature && !hasDrawnRef.current) {
-      savedData = initialSignature;
+    if (!isClearedRef.current) {
+      if (canvas.width > 0 && canvas.height > 0 && hasDrawnRef.current) {
+        savedData = canvas.toDataURL('image/png');
+      } else if (initialSignature && !hasDrawnRef.current) {
+        savedData = initialSignature;
+      }
     }
 
     lastWidthRef.current = rect.width;
@@ -57,24 +62,20 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.scale(dpr, dpr);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, rect.width, rect.height);
-
-    // Baseline guide for signing
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.beginPath();
-    ctx.moveTo(20, rect.height - 24);
-    ctx.lineTo(rect.width - 20, rect.height - 24);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.scale(dpr, dpr);
 
-    if (savedData) {
+    if (savedData && !isClearedRef.current) {
       const img = new Image();
       img.onload = () => {
-        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        if (!isClearedRef.current && canvasRef.current) {
+          const currentCtx = canvasRef.current.getContext('2d');
+          if (currentCtx) {
+            currentCtx.drawImage(img, 0, 0, rect.width, rect.height);
+          }
+        }
       };
       img.src = savedData;
     }
@@ -111,17 +112,19 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     try {
-      if (typeof canvas.setPointerCapture === 'function') {
+      if (typeof canvas.setPointerCapture === 'function' && e.pointerId !== undefined) {
         canvas.setPointerCapture(e.pointerId);
       }
     } catch {
       // Safe fallback for pointer emulation
     }
 
+    isClearedRef.current = false;
     const pt = getCanvasPoint(e);
     lastPointRef.current = pt;
-    setIsDrawing(true);
+    isDrawingRef.current = true;
     setHasDrawn(true);
+    hasDrawnRef.current = true;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -134,11 +137,13 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
     ctx.lineTo(pt.x + 0.1, pt.y + 0.1);
     ctx.stroke();
 
-    onChange(canvas.toDataURL('image/png'));
+    const data = canvas.toDataURL('image/png');
+    onChange?.(data);
+    onSignatureChange?.(data);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !lastPointRef.current) return;
+    if (!isDrawingRef.current || !lastPointRef.current) return;
     e.preventDefault();
 
     const canvas = canvasRef.current;
@@ -159,10 +164,11 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
 
     lastPointRef.current = currentPt;
     setHasDrawn(true);
+    hasDrawnRef.current = true;
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
+    if (!isDrawingRef.current) return;
     const canvas = canvasRef.current;
     if (canvas) {
       try {
@@ -173,19 +179,34 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
         // Safe fallback
       }
     }
-    setIsDrawing(false);
+    isDrawingRef.current = false;
     lastPointRef.current = null;
 
     if (canvas) {
-      onChange(canvas.toDataURL('image/png'));
+      const data = canvas.toDataURL('image/png');
+      onChange?.(data);
+      onSignatureChange?.(data);
     }
   };
 
   const handleClear = () => {
+    isDrawingRef.current = false;
+    isClearedRef.current = true;
     setHasDrawn(false);
     hasDrawnRef.current = false;
-    initCanvas(true);
-    onChange(null);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+        ctx.scale(dpr, dpr);
+      }
+    }
+    onChange?.(null);
+    onSignatureChange?.('');
   };
 
   return (
@@ -195,22 +216,30 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
           <PenTool className="w-3.5 h-3.5 text-blue-700" />
           <span>{displayLabel}</span>
         </label>
-        {hasDrawn && (
-          <button
-            type="button"
-            onClick={handleClear}
-            className="flex items-center space-x-1 text-[11px] font-bold text-slate-600 hover:text-slate-900 px-2.5 py-1.5 rounded hover:bg-slate-100 transition min-h-[44px]"
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span>{displayClearLabel}</span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={handleClear}
+          aria-label={displayClearLabel}
+          className={`flex items-center space-x-1 text-[11px] font-bold px-2.5 py-1.5 rounded transition min-h-[44px] ${
+            hasDrawn
+              ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer'
+              : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50 cursor-pointer'
+          }`}
+        >
+          <RotateCcw className="w-3 h-3" />
+          <span>{displayClearLabel}</span>
+        </button>
       </div>
 
       <div
         ref={containerRef}
         className="relative w-full h-28 rounded-lg overflow-hidden border border-slate-300 bg-white focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition shadow-sm"
       >
+        {/* Baseline guide for signing rendered via CSS behind canvas */}
+        <div
+          className="absolute left-5 right-5 bottom-6 border-b border-dashed border-slate-300 pointer-events-none z-0"
+          aria-hidden="true"
+        />
         <canvas
           ref={canvasRef}
           role="img"
@@ -219,11 +248,11 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
-          className="w-full h-full block cursor-crosshair touch-none"
+          className="w-full h-full block cursor-crosshair touch-none relative z-10"
           style={{ touchAction: 'none' }}
         />
         {!hasDrawn && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400 text-xs font-sans select-none">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400 text-xs font-sans select-none z-0">
             {helperText}
           </div>
         )}

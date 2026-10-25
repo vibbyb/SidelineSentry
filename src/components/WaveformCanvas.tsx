@@ -183,7 +183,7 @@ const WaveformCanvasComponent: React.FC<WaveformCanvasProps> = ({
                 : 'text-emerald-700'
             }`}
           >
-            {currentRms.toFixed(3)} <span className="text-[10px] text-slate-600 font-normal">m/s²</span>
+            {currentRms.toFixed(3)}
           </div>
         </div>
       </div>

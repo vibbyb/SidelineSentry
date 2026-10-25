@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { AthleteProfile, AssessmentRecord } from '../types/clinical';
-import { AlertTriangle, CheckCircle2, FileText, ShieldAlert, RotateCcw, AlertOctagon, Share2, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileText, ShieldAlert, RotateCcw, AlertOctagon } from 'lucide-react';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
 import { translateTrigger, translateSkippedReason } from '../i18n/triggerTranslator';
-import { buildParentShareSummary, shareParentSummary } from '../utils/share';
-import { SHARE_THEME_TEXT } from '../i18n/shareTheme';
 
 interface TriageVerdictProps {
   athlete: AthleteProfile;
@@ -26,28 +24,13 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
   lang = 'en'
 }) => {
   const t = TRANSLATIONS[lang];
-  const shareText = SHARE_THEME_TEXT[lang];
   const [baselineSaved, setBaselineSaved] = useState<boolean>(false);
-  const [shareToast, setShareToast] = useState<string | null>(null);
-  const [manualShareSummary, setManualShareSummary] = useState<string | null>(null);
   const { triage, balanceScore, reactionScore, kingDevickScore } = assessment;
 
   const isRemoval = triage.verdict === 'IMMEDIATE_REMOVAL';
   const isCaution = triage.verdict === 'EVALUATION_RECOMMENDED';
   const isInvalid = triage.verdict === 'INVALID_ASSESSMENT_RETEST_REQUIRED';
   const isDemo = Boolean((assessment as { isDemo?: boolean }).isDemo);
-
-  const handleShareWithParent = async () => {
-    const summaryText = buildParentShareSummary({ ...assessment, athlete }, lang);
-    const shareTitle = `${athlete.name} - ${shareText.shareTitle}`;
-    const outcome = await shareParentSummary(summaryText, shareTitle);
-    if (outcome === 'shared' || outcome === 'copied') {
-      setShareToast(shareText.shareSuccessToast);
-      setTimeout(() => setShareToast(null), 3500);
-    } else if (outcome === 'manual') {
-      setManualShareSummary(summaryText);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -109,7 +92,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
 
           <div className="bg-white/80 px-3 py-2 rounded-xl border border-slate-200/80 text-xs flex items-center justify-between">
             <span className="text-slate-500 font-medium">{t.athleteLabel}</span>
-            <span className="font-bold text-slate-900">{athlete.name} (#{athlete.jerseyNumber} • {athlete.sport})</span>
+            <span className="font-bold text-slate-900">{athlete.name} (#{athlete.jerseyNumber} | {athlete.sport})</span>
           </div>
         </div>
       </div>
@@ -123,20 +106,6 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
             </div>
             <p className="text-xs text-red-900 mt-1 leading-relaxed font-medium">
               {t.emergencyStopNoticeDesc}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {triage.hasIndividualBaseline === false && (
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 flex items-start space-x-3 shadow-sm">
-          <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-amber-800">
-              {t.normativePriorApplied}
-            </div>
-            <p className="text-xs text-amber-900 mt-1 leading-relaxed font-medium">
-              {t.noBaselineMarginNotice}
             </p>
           </div>
         </div>
@@ -347,7 +316,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
                   </span>
                 </div>
                 <span className="font-mono text-[11px] text-emerald-700 font-black">
-                  {balanceScore.stabilityIndex.toFixed(3)} m/s² • {reactionScore.averageMs}ms
+                  {balanceScore.stabilityIndex.toFixed(3)} | {reactionScore.averageMs}ms
                 </span>
               </div>
             ) : isDemo ? (
@@ -364,7 +333,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
                   </span>
                 </button>
                 <p className="text-[11px] text-amber-800 mt-1.5 font-medium">
-                  {shareText.demoBaselineDisabled}
+                  {lang === 'es' ? 'La línea base no se puede guardar en modo de prueba.' : 'Baseline cannot be saved during simulated test.'}
                 </p>
               </div>
             ) : (
@@ -382,26 +351,6 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
                 </span>
               </button>
             )}
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={handleShareWithParent}
-          className="w-full flex items-center justify-center space-x-2 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition active:scale-[0.98] min-h-[44px]"
-        >
-          <Share2 className="w-4 h-4 text-emerald-400" />
-          <span>{shareText.shareWithParentBtn}</span>
-        </button>
-
-        {shareToast && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold flex items-center space-x-2 shadow-xs"
-          >
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{shareToast}</span>
           </div>
         )}
 
@@ -429,50 +378,6 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
           </button>
         </div>
       </div>
-
-      {manualShareSummary && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="manual-share-dialog-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm"
-        >
-          <div className="bg-white border-2 border-slate-900 w-full max-w-lg rounded-2xl p-5 shadow-2xl space-y-3 text-slate-900">
-            <div className="flex items-center justify-between">
-              <h3 id="manual-share-dialog-title" className="text-sm font-bold uppercase tracking-wide">
-                {shareText.manualShareTitle}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setManualShareSummary(null)}
-                className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                aria-label={shareText.closeManualShare}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-xs text-slate-600">
-              {shareText.manualShareHelp}
-            </p>
-            <textarea
-              readOnly
-              value={manualShareSummary}
-              onClick={e => (e.target as HTMLTextAreaElement).select()}
-              rows={10}
-              className="w-full p-3 rounded-xl border-2 border-slate-300 font-mono text-xs bg-slate-50 text-slate-900 focus:outline-none focus:border-slate-900 select-all"
-            />
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setManualShareSummary(null)}
-                className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold min-h-[44px]"
-              >
-                {shareText.closeManualShare}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

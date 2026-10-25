@@ -13,7 +13,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     sportPositionLabel: 'Sport & Position',
     baselineDateLabel: 'Baseline Record Date',
     preseasonCertified: 'Preseason baseline',
-    walkOnNormative: 'No Preseason Baseline (+15% Margin)',
+    walkOnNormative: 'No Preseason Baseline',
     sportImpactHelmet: 'Hard helmet-to-helmet or turf contact during play.',
     sportImpactGeneral: 'Direct collision during play.',
     sportImpactEvaluated: 'Athlete evaluated on the sideline within 5 minutes of impact.',
@@ -84,7 +84,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     sensorPermissionDenied: 'Motion Sensor Permission Denied',
     requestSensorAccess: 'Enable Motion Sensors',
     waveformTelemetry: 'Live Sensor Data',
-    swayRmsLive: 'Instant RMS Sway',
+    swayRmsLive: 'Live Balance Sway',
     peakSwayLabel: 'Peak Sway',
 
     // Reaction Test
@@ -108,7 +108,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     // Triage Verdict & Recommendations
     sidelineRecommendation: 'Sideline Recommendation',
     emergencyStopNotice: 'Emergency medical attention required',
-    safetyMarginNotice: 'No Preseason Baseline Applied (+15% Safety Margin)',
+    safetyMarginNotice: 'No Preseason Baseline Applied',
     saveAsBaseline: 'Save as Preseason Baseline',
     baselineSaved: 'Baseline Saved',
 
@@ -120,9 +120,9 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     jerseyNumberField: 'Jersey Number',
     sportField: 'Sport',
     positionField: 'Position',
-    baselineStabilityField: 'Baseline Stability Index (m/s²)',
+    baselineStabilityField: 'Baseline Stability Index',
     baselineReactionField: 'Baseline Reaction Time (ms)',
-    baselineKdField: 'Baseline King-Devick Time (s)',
+    baselineKdField: 'Baseline Reading Time (s)',
     saveAthleteBtn: 'Save Baseline',
     cancelBtn: 'Cancel',
 
@@ -220,11 +220,11 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     positionPlaceholder: 'e.g. Wide Receiver',
     preseasonBaselineCheckbox: 'Preseason Baseline Recorded?',
     preseasonBaselineCheckboxDesc: 'Uncheck if athlete does not have a preseason baseline yet',
-    baselineSwayField: 'Baseline Sway (RMS)',
+    baselineSwayField: 'Baseline Balance',
     baselineReactionFieldShort: 'Reaction (ms)',
     baselineEyeFieldShort: 'Reading Test (s)',
-    schoolSafetyMarginActive: 'Standard School Safety Margin Active:',
-    schoolSafetyMarginActiveDesc: 'Safety check thresholds are tightened by +15% using typical baseline scores (0.085 m/s² sway, 230ms reaction, 42.0s reading test).',
+    schoolSafetyMarginActive: 'Standard Reference Baseline Active:',
+    schoolSafetyMarginActiveDesc: 'Typical reference scores are used (0.085 sway, 230ms reaction, 42.0s reading test).',
     cancelModalBtn: 'Cancel',
     saveAthleteModalBtn: 'Save Athlete',
 
@@ -233,7 +233,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     athleteLabel: 'Athlete:',
     emergencyStopNoticeTitle: 'Emergency Stop Triggered',
     emergencyStopNoticeDesc: 'Physical tests were skipped because of serious warning signs. The athlete should be seen by a doctor or athletic trainer immediately.',
-    noBaselineMarginNotice: 'This athlete does not have a preseason baseline on file. A stricter 15% safety margin was applied to ensure the athlete is protected.',
+    noBaselineMarginNotice: 'This athlete does not have a preseason baseline on file. Standard reference baseline used.',
     warningSignsCount: 'Warning Signs & Score Changes ({count})',
     test2Title: 'Test 2: Balance Check',
     test3Title: 'Test 3: Reaction Speed',
@@ -256,7 +256,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
 
     // Waveform Canvas extras
     simulatedReplayTag: 'Simulated 60Hz Replay',
-    stabilityIndexRmsTag: 'Stability Index (RMS)',
+    stabilityIndexRmsTag: 'Stability Score',
     waveformCaption: 'Live Balance Sway Graph - 60Hz Motion Sensor (256 samples)',
 
     // Red Flags extras
@@ -274,7 +274,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     sportPositionLabel: 'Deporte y Posición',
     baselineDateLabel: 'Fecha de Línea Base',
     preseasonCertified: 'Línea base de pretemporada',
-    walkOnNormative: 'Sin Línea Base Previa (+15% Margen)',
+    walkOnNormative: 'Sin Línea Base Previa',
     sportImpactHelmet: 'Contacto fuerte casco a casco o con el césped durante el juego.',
     sportImpactGeneral: 'Colisión directa durante el juego.',
     sportImpactEvaluated: 'Atleta evaluado en la banda dentro de los 5 minutos posteriores al impacto.',
@@ -345,7 +345,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     sensorPermissionDenied: 'Permiso de Sensor de Movimiento Denegado',
     requestSensorAccess: 'Habilitar Sensores de Movimiento',
     waveformTelemetry: 'Datos del Sensor en Vivo',
-    swayRmsLive: 'Oscilación RMS Instantánea',
+    swayRmsLive: 'Balance en Vivo',
     peakSwayLabel: 'Pico de Oscilación',
 
     // Reaction Test
@@ -369,7 +369,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     // Triage Verdict & Recommendations
     sidelineRecommendation: 'Recomendación de Campo',
     emergencyStopNotice: 'Se requiere atención médica de emergencia',
-    safetyMarginNotice: 'Sin Línea Base Previa Aplicada (+15% Margen de Seguridad)',
+    safetyMarginNotice: 'Sin Línea Base Previa Aplicada',
     saveAsBaseline: 'Guardar como Línea Base de Pretemporada',
     baselineSaved: 'Línea Base Guardada',
 
@@ -381,9 +381,9 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     jerseyNumberField: 'Número de Camiseta',
     sportField: 'Deporte',
     positionField: 'Posición',
-    baselineStabilityField: 'Índice de Estabilidad Base (m/s²)',
+    baselineStabilityField: 'Índice de Estabilidad Base',
     baselineReactionField: 'Tiempo de Reacción Base (ms)',
-    baselineKdField: 'Tiempo Base King-Devick (s)',
+    baselineKdField: 'Tiempo Base de Lectura (s)',
     saveAthleteBtn: 'Guardar Línea Base',
     cancelBtn: 'Cancelar',
 
@@ -481,11 +481,11 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     positionPlaceholder: 'ej. Receptor',
     preseasonBaselineCheckbox: '¿Línea Base de Pretemporada Registrada?',
     preseasonBaselineCheckboxDesc: 'Desmarque si el atleta aún no tiene una línea base registrada',
-    baselineSwayField: 'Oscilación Base (RMS)',
+    baselineSwayField: 'Balance Base',
     baselineReactionFieldShort: 'Reacción (ms)',
     baselineEyeFieldShort: 'Lectura (s)',
-    schoolSafetyMarginActive: 'Margen de Seguridad Escolar Activo:',
-    schoolSafetyMarginActiveDesc: 'Los límites del chequeo de seguridad se ajustan en un +15% usando puntajes típicos de referencia (0.085 m/s² oscilación, 230ms reacción, 42.0s prueba de lectura).',
+    schoolSafetyMarginActive: 'Línea Base de Referencia Activa:',
+    schoolSafetyMarginActiveDesc: 'Se usan puntajes típicos de referencia (0.085 oscilación, 230ms reacción, 42.0s prueba de lectura).',
     cancelModalBtn: 'Cancelar',
     saveAthleteModalBtn: 'Guardar Atleta',
 
@@ -494,7 +494,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     athleteLabel: 'Atleta:',
     emergencyStopNoticeTitle: 'Parada de Emergencia Activada',
     emergencyStopNoticeDesc: 'Las pruebas físicas se omitieron debido a señales de alarma graves. El atleta debe ser evaluado por un médico o entrenador atlético de inmediato.',
-    noBaselineMarginNotice: 'Este atleta no tiene una línea base de pretemporada registrada. Se aplicó un margen de seguridad más estricto del 15% para proteger al atleta.',
+    noBaselineMarginNotice: 'Este atleta no tiene una línea base de pretemporada registrada. Se usó la línea base de referencia típica.',
     warningSignsCount: 'Señales de Alerta y Cambios de Puntaje ({count})',
     test2Title: 'Prueba 2: Chequeo de Equilibrio',
     test3Title: 'Prueba 3: Velocidad de Reacción',
@@ -517,7 +517,7 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
 
     // Waveform Canvas extras
     simulatedReplayTag: 'Reproducción Simulada 60Hz',
-    stabilityIndexRmsTag: 'Índice de Estabilidad (RMS)',
+    stabilityIndexRmsTag: 'Puntaje de Estabilidad',
     waveformCaption: 'Gráfico de Equilibrio en Vivo - Sensor de Movimiento 60Hz (256 muestras)',
 
     // Red Flags extras
