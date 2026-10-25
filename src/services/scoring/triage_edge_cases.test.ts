@@ -68,6 +68,44 @@ describe('triage and scoring edge cases (correctness audit)', () => {
     expect(triage.primaryTriggers.some(t => t.includes('skipped'))).toBe(true);
   });
 
+  it('does NOT push skipped test triggers into primaryTriggers when red flags are checked', () => {
+    const flagsWithNeckPain: AssessmentRecord['redFlags'] = {
+      ...noRedFlags,
+      neckPain: true,
+      hasRedFlags: true
+    };
+
+    const skippedBalance: AssessmentRecord['balanceScore'] = {
+      durationSeconds: 0,
+      stabilityIndex: 0,
+      peakSway: 0,
+      swayHistory: [],
+      valid: false,
+      skippedReason: 'Skipped for safety: Emergency warning sign observed'
+    };
+    const skippedReaction: AssessmentRecord['reactionScore'] = {
+      averageMs: 0,
+      fastestMs: 0,
+      slowestMs: 0,
+      trials: [],
+      falseStarts: 0,
+      valid: false,
+      skippedReason: 'Skipped for safety: Emergency warning sign observed'
+    };
+    const skippedKD: AssessmentRecord['kingDevickScore'] = {
+      durationSeconds: 0,
+      errorsCount: 0,
+      completed: false,
+      skippedReason: 'Skipped for safety: Emergency warning sign observed'
+    };
+
+    const triage = calculateTriage(baseAthlete, skippedBalance, skippedReaction, skippedKD, flagsWithNeckPain);
+    expect(triage.verdict).toBe('IMMEDIATE_REMOVAL');
+    expect(triage.primaryTriggers).toEqual(['EMERGENCY PROTOCOL: Neck pain or tenderness']);
+    expect(triage.primaryTriggers.length).toBe(1);
+    expect(triage.primaryTriggers.some(t => /skipped/i.test(t))).toBe(false);
+  });
+
   it('normalizes deltas to zero for skipped tests instead of negative numbers', () => {
     const skippedBalance: AssessmentRecord['balanceScore'] = {
       durationSeconds: 0,

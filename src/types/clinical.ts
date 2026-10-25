@@ -105,6 +105,7 @@ export interface AssessmentRecord {
     deterioratingConsciousState: boolean;
     vomitingRepeated: boolean;
     increasingConfusion: boolean;
+    hasRedFlags?: boolean;
     // Sideline Memory & Orientation Questions
     maddocksVenueFailed?: boolean;
     maddocksPeriodFailed?: boolean;

@@ -78,11 +78,44 @@ export function loadAssessments(): AssessmentRecord[] {
     const raw = storage.getItem(ASSESSMENTS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? (parsed.filter(
-          a => a && typeof a === 'object' && typeof a.id === 'string' && typeof a.athleteId === 'string'
-        ) as AssessmentRecord[])
-      : [];
+    if (!Array.isArray(parsed)) return [];
+
+    const valid = parsed.filter(
+      a => a && typeof a === 'object' && typeof a.id === 'string' && typeof a.athleteId === 'string'
+    ) as AssessmentRecord[];
+
+    // Migrate any legacy saved assessments: if red flags are present, strip any skipped test entries from primaryTriggers
+    let hasMigration = false;
+    const migrated = valid.map(assessment => {
+      const redFlags = assessment.redFlags as Record<string, boolean | undefined> | undefined;
+      const hasFlags =
+        Boolean((redFlags as { hasRedFlags?: boolean } | undefined)?.hasRedFlags) ||
+        (redFlags && Object.entries(redFlags).some(([k, v]) => k !== 'hasRedFlags' && v === true)) ||
+        Boolean(assessment.isEmergencyLockdown);
+
+      if (hasFlags && assessment.triage?.primaryTriggers) {
+        const filteredTriggers = assessment.triage.primaryTriggers.filter(
+          t => !/skipped|omitid/i.test(t)
+        );
+        if (filteredTriggers.length !== assessment.triage.primaryTriggers.length) {
+          hasMigration = true;
+          return {
+            ...assessment,
+            triage: {
+              ...assessment.triage,
+              primaryTriggers: filteredTriggers
+            }
+          };
+        }
+      }
+      return assessment;
+    });
+
+    if (hasMigration) {
+      storage.setItem(ASSESSMENTS_KEY, JSON.stringify(migrated));
+    }
+
+    return migrated;
   } catch {
     return [];
   }

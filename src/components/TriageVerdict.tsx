@@ -142,33 +142,41 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
         </div>
       )}
 
-      {triage.primaryTriggers.length > 0 && (
-        <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-sm relative overflow-hidden">
-          <div className="flex items-center space-x-2 text-xs uppercase font-bold text-red-700 mb-3">
-            <AlertOctagon className="w-4 h-4" />
-            <span>
-              {t.warningSignsCount.replace('{count}', String(triage.primaryTriggers.length))}
-            </span>
+      {(() => {
+        const actualTriggers = (triage.primaryTriggers || []).filter(
+          trig => !/skipped|omitid/i.test(trig)
+        );
+        if (actualTriggers.length === 0) return null;
+        return (
+          <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-sm relative overflow-hidden">
+            <div className="flex items-center space-x-2 text-xs uppercase font-bold text-red-700 mb-3">
+              <AlertOctagon className="w-4 h-4" />
+              <span>
+                {actualTriggers.length === 1
+                  ? (lang === 'es' ? '1 Señal de Advertencia Observada' : '1 Warning Observed')
+                  : t.warningSignsCount.replace('{count}', String(actualTriggers.length))}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {actualTriggers.map((trig, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-950 font-bold flex items-center space-x-2"
+                >
+                  <div className="w-2 h-2 rounded-full bg-red-700 shrink-0" />
+                  <span>{translateTrigger(trig, lang)}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {triage.primaryTriggers.map((trig, idx) => (
-              <div
-                key={idx}
-                className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-950 font-bold flex items-center space-x-2"
-              >
-                <div className="w-2 h-2 rounded-full bg-red-700 shrink-0" />
-                <span>{translateTrigger(trig, lang)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Metric 1: Balance Check */}
         <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-sm relative overflow-hidden">
           <div className="text-xs text-slate-600 uppercase tracking-wider font-bold mb-1">
-            {t.test2Title}
+            {lang === 'es' ? 'Prueba 2: Balance' : 'Test 2: Balance'}
           </div>
           {balanceScore.skippedReason ? (
             <div className="py-2">
@@ -216,7 +224,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
         {/* Metric 2: Reaction Time */}
         <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-sm relative overflow-hidden">
           <div className="text-xs text-slate-600 uppercase tracking-wider font-bold mb-1">
-            {t.test3Title}
+            {lang === 'es' ? 'Prueba 3: Tiempo de Reacción' : 'Test 3: Reaction Time'}
           </div>
           {reactionScore.skippedReason ? (
             <div className="py-2">
@@ -264,7 +272,7 @@ export const TriageVerdict: React.FC<TriageVerdictProps> = ({
         {/* Metric 3: Reading Test */}
         <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-sm relative overflow-hidden">
           <div className="text-xs text-slate-600 uppercase tracking-wider font-bold mb-1">
-            {t.test4Title}
+            {lang === 'es' ? 'Prueba 4: Lectura de Números' : 'Test 4: Number Reading'}
           </div>
           {kingDevickScore.skippedReason ? (
             <div className="py-2">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { AthleteProfile, AssessmentRecord, ClinicianCredential } from '../types/clinical';
-import { Printer, Copy, Check, X, Shield, Download, Lock, CheckCircle2, Share2 } from 'lucide-react';
+import { AthleteProfile, AssessmentRecord } from '../types/clinical';
+import { Printer, Copy, Check, X, Shield, CheckCircle2, Share2 } from 'lucide-react';
 import { SignatureCanvas } from './SignatureCanvas';
 import { generateSessionHash } from '../services/security/sessionHash';
 import { copyToClipboard } from '../utils/clipboard';
@@ -10,9 +10,7 @@ import { buildParentShareSummary, shareParentSummary } from '../utils/share';
 import { SHARE_THEME_TEXT } from '../i18n/shareTheme';
 import {
   EvaluatorReportInfo,
-  CREDENTIAL_OPTIONS,
   formatPlainTextReport,
-  exportReportJsonFile,
   getSportBiomechanicsNote
 } from '../utils/reportFormatter';
 
@@ -34,11 +32,9 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
   const t = TRANSLATIONS[lang];
   const shareText = SHARE_THEME_TEXT[lang];
   const [copied, setCopied] = useState<boolean>(false);
-  const [copiedHash, setCopiedHash] = useState<boolean>(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
   const [manualShareSummary, setManualShareSummary] = useState<string | null>(null);
   const copiedTimeoutRef = useRef<number | null>(null);
-  const copiedHashTimeoutRef = useRef<number | null>(null);
 
   const handleShareWithParent = async () => {
     const summaryText = buildParentShareSummary({ ...assessment, athlete }, lang);
@@ -54,8 +50,8 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
 
   const [notes, setNotes] = useState<string>(() => getSportBiomechanicsNote(athlete.sport, lang));
   const [evaluatorName, setEvaluatorName] = useState<string>(assessment.certification?.evaluatorName || '');
-  const [evaluatorRole, setEvaluatorRole] = useState<ClinicianCredential>(assessment.certification?.credential || 'ATC');
-  const [licenseNumber, setLicenseNumber] = useState<string>(assessment.certification?.licenseNumber || '');
+  const evaluatorRole = assessment.certification?.credential || 'OTHER';
+  const licenseNumber = assessment.certification?.licenseNumber || '';
   const [signatureUrl, setSignatureUrl] = useState<string | null>(assessment.certification?.signatureDataUrl || null);
   const [sessionHash, setSessionHash] = useState<string>(assessment.sessionHash || t.computingDigest);
 
@@ -119,7 +115,6 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       if (copiedTimeoutRef.current !== null) window.clearTimeout(copiedTimeoutRef.current);
-      if (copiedHashTimeoutRef.current !== null) window.clearTimeout(copiedHashTimeoutRef.current);
     };
   }, [handleClose]);
 
@@ -133,18 +128,9 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
     }
   };
 
-  const handleCopyHash = async () => {
-    const success = await copyToClipboard(sessionHash);
-    if (success) {
-      setCopiedHash(true);
-      if (copiedHashTimeoutRef.current !== null) window.clearTimeout(copiedHashTimeoutRef.current);
-      copiedHashTimeoutRef.current = window.setTimeout(() => setCopiedHash(false), 2000);
-    }
-  };
-
   const scoreRows = [
     {
-      name: t.test2Balance,
+      name: lang === 'es' ? 'Prueba 2: Balance' : 'Test 2: Balance',
       baseline: `${(athlete.baselineStabilityIndex || 0.085).toFixed(3)} m/s²`,
       sideline: assessment.balanceScore.skippedReason ? t.skippedWarningSigns : `${assessment.balanceScore.stabilityIndex.toFixed(3)} m/s²`,
       isSkipped: Boolean(assessment.balanceScore.skippedReason),
@@ -152,7 +138,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
       isFlagged: assessment.triage.swayDegradationPercent >= 25 * mult
     },
     {
-      name: t.test3Reaction,
+      name: lang === 'es' ? 'Prueba 3: Tiempo de Reacción' : 'Test 3: Reaction Time',
       baseline: `${athlete.baselineReactionTimeMs || 230} ms`,
       sideline: assessment.reactionScore.skippedReason ? t.skippedWarningSigns : `${assessment.reactionScore.averageMs} ms`,
       isSkipped: Boolean(assessment.reactionScore.skippedReason),
@@ -160,7 +146,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
       isFlagged: assessment.triage.reactionDelayDeltaMs >= 40 * mult
     },
     {
-      name: t.test4EyeReading,
+      name: lang === 'es' ? 'Prueba 4: Lectura de Números' : 'Test 4: Number Reading',
       baseline: `${(athlete.baselineKingDevickSeconds || 42.0).toFixed(1)} s`,
       sideline: assessment.kingDevickScore.skippedReason ? t.skippedWarningSigns : `${assessment.kingDevickScore.durationSeconds.toFixed(1)} s`,
       isSkipped: Boolean(assessment.kingDevickScore.skippedReason),
@@ -200,14 +186,6 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             >
               <Share2 className="w-3.5 h-3.5" />
               <span>{shareText.shareWithParentBtn}</span>
-            </button>
-            <button
-              onClick={() => exportReportJsonFile(athlete, assessment, sessionHash, evaluatorInfo, notes)}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-blue-300 border border-slate-700 font-bold transition min-h-[44px]"
-              title={t.exportJsonTooltip}
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>{t.exportJson}</span>
             </button>
             <button
               onClick={handleCopySummary}
@@ -255,7 +233,6 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
               <div className="text-xs text-slate-600 print:text-gray-600 mt-1 font-medium">{t.reportDocSubtitle}</div>
             </div>
             <div className="text-right font-mono text-xs text-slate-500 print:text-gray-600">
-              <div>{t.sessionIdLabel}: {assessment.id.slice(0, 12)}</div>
               <div>{t.evaluatedLabel}: {assessment.timestamp}</div>
             </div>
           </div>
@@ -292,14 +269,20 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
               {assessment.triage.verdict === 'EVALUATION_RECOMMENDED' && t.recEvaluationRecommended}
               {assessment.triage.verdict === 'CLEAR_OBSERVED' && t.recClearObserved}
             </div>
-            {assessment.triage.primaryTriggers.length > 0 && (
-              <div className="mt-2 text-xs font-bold space-y-0.5">
-                <div>{t.observedTriggersHeader}</div>
-                {assessment.triage.primaryTriggers.map((tItem, idx) => (
-                  <div key={idx} className="pl-2 text-red-700 print:text-red-700">• {translateTrigger(tItem, lang)}</div>
-                ))}
-              </div>
-            )}
+            {(() => {
+              const actualTriggers = (assessment.triage.primaryTriggers || []).filter(
+                trig => !/skipped|omitid/i.test(trig)
+              );
+              if (actualTriggers.length === 0) return null;
+              return (
+                <div className="mt-2 text-xs font-bold space-y-0.5">
+                  <div>{t.observedTriggersHeader}</div>
+                  {actualTriggers.map((tItem, idx) => (
+                    <div key={idx} className="pl-2 text-red-700 print:text-red-700">• {translateTrigger(tItem, lang)}</div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Metric Comparison Table */}
@@ -345,41 +328,17 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
               <span className="text-[10px] text-slate-500 font-medium">{t.schoolSidelineBadge}</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div>
-                <label className="text-[11px] text-slate-700 font-bold block mb-1">{t.evaluatorName}</label>
-                <input
-                  type="text"
-                  value={evaluatorName}
-                  onChange={e => setEvaluatorName(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600 text-xs print:bg-white print:text-black print:border-gray-300 shadow-sm"
-                  placeholder={t.evaluatorPlaceholder}
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] text-slate-700 font-bold block mb-1">{t.evaluatorRole}</label>
-                <select
-                  value={evaluatorRole}
-                  onChange={e => setEvaluatorRole(e.target.value as ClinicianCredential)}
-                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600 text-xs print:bg-white print:text-black print:border-gray-300 shadow-sm"
-                >
-                  {CREDENTIAL_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{t[opt.key]}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] text-slate-700 font-bold block mb-1">{t.licenseNumber}</label>
-                <input
-                  type="text"
-                  value={licenseNumber}
-                  onChange={e => setLicenseNumber(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600 text-xs font-mono print:bg-white print:text-black print:border-gray-300 shadow-sm"
-                  placeholder={t.licensePlaceholder}
-                />
-              </div>
+            <div className="text-xs">
+              <label className="text-[11px] text-slate-700 font-bold block mb-1">
+                {lang === 'es' ? 'Evaluado por (Nombre del entrenador o personal)' : 'Checked by (Coach or Staff Name)'}
+              </label>
+              <input
+                type="text"
+                value={evaluatorName}
+                onChange={e => setEvaluatorName(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600 text-xs print:bg-white print:text-black print:border-gray-300 shadow-sm"
+                placeholder={lang === 'es' ? 'Ej. Entrenador Smith' : 'e.g. Coach Smith'}
+              />
             </div>
 
             {/* Signature Canvas */}
@@ -400,24 +359,6 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             </div>
 
             <p className="text-[10px] text-slate-600 leading-tight italic font-medium">{t.attestationStatement}</p>
-          </div>
-
-          {/* Check Code Block */}
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-sm">
-            <div className="flex items-center space-x-2">
-              <Lock className="w-4 h-4 text-emerald-700 shrink-0" />
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-600 tracking-wider">{t.sessionHash}</span>
-                <div className="font-mono text-[11px] text-emerald-800 break-all select-all font-bold">{sessionHash}</div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleCopyHash}
-              className="shrink-0 text-xs px-3 py-2 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold transition shadow-sm min-h-[44px]"
-            >
-              {copiedHash ? t.hashCopied : t.copyHash}
-            </button>
           </div>
 
           {/* Parent & Caregiver Directives */}

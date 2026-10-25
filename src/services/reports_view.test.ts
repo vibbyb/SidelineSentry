@@ -156,4 +156,49 @@ describe('Reports & Emergency Protocol Flow', () => {
     expect(loaded[0].id).toBe('rec-2');
     expect(loaded[1].id).toBe('rec-1');
   });
+
+  it('migrates legacy saved assessment in storage by stripping skipped test triggers when red flags are present', () => {
+    const legacyRecord: AssessmentRecord = {
+      id: 'legacy-rec-1',
+      athleteId: 'ath-1',
+      timestamp: '2026-10-24 10:00:00',
+      isPostImpact: true,
+      balanceScore: { durationSeconds: 0, stabilityIndex: 0, peakSway: 0, swayHistory: [], valid: false, skippedReason: 'Skipped for safety' },
+      reactionScore: { averageMs: 0, fastestMs: 0, slowestMs: 0, trials: [], falseStarts: 0, valid: false, skippedReason: 'Skipped for safety' },
+      kingDevickScore: { durationSeconds: 0, errorsCount: 0, completed: false, skippedReason: 'Skipped for safety' },
+      redFlags: {
+        neckPain: true,
+        doubleVision: false,
+        weaknessOrTingling: false,
+        severeOrIncreasingHeadache: false,
+        seizureOrConvulsion: false,
+        lossOfConsciousness: false,
+        deterioratingConsciousState: false,
+        vomitingRepeated: false,
+        increasingConfusion: false,
+        hasRedFlags: true
+      },
+      triage: {
+        verdict: 'IMMEDIATE_REMOVAL',
+        primaryTriggers: [
+          'EMERGENCY PROTOCOL: Neck pain or tenderness',
+          'Balance Test Skipped: Skipped for safety',
+          'Reaction Test Skipped: Skipped for safety',
+          'Reading Test Skipped: Skipped for safety'
+        ],
+        swayDegradationPercent: 0,
+        reactionDelayDeltaMs: 0,
+        kingDevickDeltaSeconds: 0,
+        nonDiagnosticDisclaimer: 'Notice'
+      }
+    };
+
+    // Save directly to mockStorage to simulate pre-existing saved record in localStorage
+    storageMap['sidelinesentry_assessments'] = JSON.stringify([legacyRecord]);
+
+    const loaded = loadAssessments();
+    expect(loaded.length).toBe(1);
+    expect(loaded[0].triage.primaryTriggers).toEqual(['EMERGENCY PROTOCOL: Neck pain or tenderness']);
+    expect(loaded[0].triage.primaryTriggers.some(t => t.includes('Skipped'))).toBe(false);
+  });
 });

@@ -217,13 +217,20 @@ export function calculateTriage(
     activeRedFlags.push("Sideline Memory Failure: Disoriented to last score/opponent");
   }
 
+  const hasEmergencyRedFlags =
+    Boolean(redFlags.hasRedFlags) ||
+    activeRedFlags.length > 0;
+
   if (activeRedFlags.length > 0) {
     primaryTriggers.push(`EMERGENCY PROTOCOL: ${activeRedFlags.join(', ')}`);
   }
 
   // 2. Baseline Check & School Safety Margin
   const hasValidIndividualBaseline =
-    athlete.hasRecordedBaseline === true &&
+    (athlete.hasRecordedBaseline === true ||
+      (athlete.hasRecordedBaseline !== false &&
+        athlete.baselineStabilityIndex !== undefined &&
+        athlete.baselineStabilityIndex > 0)) &&
     Number.isFinite(athlete.baselineStabilityIndex) &&
     (athlete.baselineStabilityIndex ?? 0) > 0 &&
     Number.isFinite(athlete.baselineReactionTimeMs) &&
@@ -245,7 +252,7 @@ export function calculateTriage(
   const KD_REMOVAL_THRESHOLD = 5.0 * safetyMarginMultiplier;
   const KD_EVALUATION_THRESHOLD = 3.0 * safetyMarginMultiplier;
 
-  if (missingBaseline) {
+  if (missingBaseline && !hasEmergencyRedFlags) {
     primaryTriggers.push('Standard School Safety Margin Applied (+15% tighter baseline check)');
   }
 
@@ -260,14 +267,17 @@ export function calculateTriage(
   const kdSkipped = Boolean(kingDevick.skippedReason);
   const hasSkippedTest = balanceSkipped || reactionSkipped || kdSkipped;
 
-  if (balance.skippedReason) {
-    primaryTriggers.push(`Balance Test Skipped: ${balance.skippedReason}`);
-  }
-  if (reaction.skippedReason) {
-    primaryTriggers.push(`Reaction Test Skipped: ${reaction.skippedReason}`);
-  }
-  if (kingDevick.skippedReason) {
-    primaryTriggers.push(`Reading Test Skipped: ${kingDevick.skippedReason}`);
+  // Only push skipped test warnings if not in emergency stop
+  if (!hasEmergencyRedFlags) {
+    if (balance.skippedReason) {
+      primaryTriggers.push(`Balance Test Skipped: ${balance.skippedReason}`);
+    }
+    if (reaction.skippedReason) {
+      primaryTriggers.push(`Reaction Test Skipped: ${reaction.skippedReason}`);
+    }
+    if (kingDevick.skippedReason) {
+      primaryTriggers.push(`Reading Test Skipped: ${kingDevick.skippedReason}`);
+    }
   }
 
   // Telemetry integrity checks for non-skipped tests

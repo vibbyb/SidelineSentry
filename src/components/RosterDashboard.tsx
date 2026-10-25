@@ -15,6 +15,8 @@ interface RosterDashboardProps {
   onStartDemo?: () => void;
   onOpenHistory?: (athlete: AthleteProfile) => void;
   lang?: SupportedLocale;
+  autoOpenAddModal?: boolean;
+  onCloseAddModal?: () => void;
 }
 
 export const RosterDashboard: React.FC<RosterDashboardProps> = ({
@@ -26,7 +28,9 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
   onImportRoster,
   onStartDemo,
   onOpenHistory,
-  lang = 'en'
+  lang = 'en',
+  autoOpenAddModal,
+  onCloseAddModal
 }) => {
   const t = TRANSLATIONS[lang];
   const rText = ROSTER_TEXT[lang];
@@ -34,7 +38,13 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
 
   const [search, setSearch] = useState<string>('');
   const [selectedSport, setSelectedSport] = useState<string>('ALL');
-  const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [showAddModal, setShowAddModal] = useState<boolean>(Boolean(autoOpenAddModal));
+
+  useEffect(() => {
+    if (autoOpenAddModal) {
+      setShowAddModal(true);
+    }
+  }, [autoOpenAddModal]);
   const [athleteToDelete, setAthleteToDelete] = useState<AthleteProfile | null>(null);
   const [pendingImportData, setPendingImportData] = useState<{ rawJson: string; athleteCount: number } | null>(null);
   const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -59,12 +69,17 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
     Basketball: { en: 'Basketball', es: 'Baloncesto' },
   };
 
+  const handleDismissAddModal = () => {
+    setShowAddModal(false);
+    onCloseAddModal?.();
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (athleteToDelete) setAthleteToDelete(null);
         else if (pendingImportData) setPendingImportData(null);
-        else if (showAddModal) setShowAddModal(false);
+        else if (showAddModal) handleDismissAddModal();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -170,7 +185,7 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
     };
 
     onAddAthlete(newAthlete);
-    setShowAddModal(false);
+    handleDismissAddModal();
     setNewName('');
     setNewJersey('');
     setHasBaseline(true);
@@ -380,20 +395,13 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs gap-2">
                   <div className="text-[10px] text-slate-500 font-medium truncate">
                     {athlete.hasRecordedBaseline === false ? (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold border border-amber-300">
-                        {t.noBaselineBadge}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold border border-amber-300">
+                        {lang === 'es' ? 'Sin línea base' : 'No baseline yet'}
                       </span>
                     ) : (
-                      <>
-                        {t.baselinePrefix}{' '}
-                        <span className="font-mono text-slate-700 font-bold">
-                          {(athlete.baselineStabilityIndex || 0.085).toFixed(3)}
-                        </span>{' '}
-                        •{' '}
-                        <span className="font-mono text-slate-700 font-bold">
-                          {athlete.baselineReactionTimeMs || 230}ms
-                        </span>
-                      </>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
+                        {lang === 'es' ? 'Línea base guardada' : 'Baseline saved'}
+                      </span>
                     )}
                   </div>
                   <button
@@ -647,7 +655,7 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={handleDismissAddModal}
                   className="px-4 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold text-xs transition min-h-[44px]"
                 >
                   {t.cancelModalBtn}

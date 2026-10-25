@@ -43,7 +43,7 @@ export function getSportBiomechanicsNote(sport: string, lang: SupportedLocale = 
 export function formatPlainTextReport(
   athlete: AthleteProfile,
   assessment: AssessmentRecord,
-  sessionHash: string,
+  _sessionHash: string,
   evaluatorInfo: EvaluatorReportInfo,
   notes: string,
   lang: SupportedLocale = 'en'
@@ -91,15 +91,12 @@ export function formatPlainTextReport(
     : ` (${t.summaryErrors} ${assessment.kingDevickScore?.errorsCount ?? 0})`;
 
   const evalName = evaluatorInfo.evaluatorName || t.summaryStaffFallback;
-  const evalRole = evaluatorInfo.evaluatorRole;
-  const licNum = evaluatorInfo.licenseNumber || 'N/A';
   const signedStr = evaluatorInfo.signatureUrl ? t.summaryYes : t.summaryNo;
 
   return `
 ${t.summaryTitle}
 ${t.summaryDate}: ${assessment.timestamp}
 ${t.summaryAthlete}: ${athlete.name} (#${athlete.jerseyNumber}, ${athlete.sport} - ${athlete.position})
-${t.summaryVerificationCode}: ${sessionHash}
 
 ${t.summaryRecommendation}
 ${assessment.triage.verdict}
@@ -114,8 +111,7 @@ ${t.summaryRedFlags}
 ${redFlagsList || t.summaryNoneReported}
 
 ${t.summaryAttestationHeader}
-${t.summaryEvaluator} ${evalName} (${evalRole})
-${t.summaryIdLicense} ${licNum}
+${t.summaryEvaluator} ${evalName}
 ${t.summarySignedScreen} ${signedStr}
 
 ${t.summaryNotesHeader}

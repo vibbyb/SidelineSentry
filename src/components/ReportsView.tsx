@@ -35,9 +35,9 @@ const TEXT = {
     suspectedConcussion: 'Suspected Concussion',
     benchAndMonitor: 'Bench & Monitor',
     clearedForPlay: 'Cleared for Play',
-    swayDegradation: 'Sway',
-    reactionDelay: 'Reaction',
-    kdDelta: 'Reading Test',
+    swayDegradation: 'Balance',
+    reactionDelay: 'Reaction Time',
+    kdDelta: 'Number Reading',
     evaluator: 'Evaluator',
     signed: 'Signed',
     totalReports: '{count} total reports',
@@ -65,8 +65,8 @@ const TEXT = {
     benchAndMonitor: 'Banca y Monitoreo',
     clearedForPlay: 'Autorizado para Jugar',
     swayDegradation: 'Balance',
-    reactionDelay: 'Reacción',
-    kdDelta: 'Lectura',
+    reactionDelay: 'Tiempo de Reacción',
+    kdDelta: 'Lectura de Números',
     evaluator: 'Evaluador',
     signed: 'Firmado',
     totalReports: '{count} reportes en total',
@@ -288,12 +288,26 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <Clock className="w-3.5 h-3.5 text-slate-400" />
                   <span>{rec.timestamp || 'Recorded session'}</span>
                 </span>
-                {rec.triage?.primaryTriggers && rec.triage.primaryTriggers.length > 0 && (
-                  <span className="text-red-700 font-sans font-bold flex items-center gap-1">
-                    <AlertOctagon className="w-3.5 h-3.5" />
-                    <span>{t.warningSignsFound.replace('{count}', String(rec.triage.primaryTriggers.length))}</span>
-                  </span>
-                )}
+                {(() => {
+                  const actualTriggers = (rec.triage?.primaryTriggers || []).filter(
+                    trig => !/skipped|omitid/i.test(trig)
+                  );
+                  if (actualTriggers.length === 0) return null;
+                  const warningText =
+                    lang === 'es'
+                      ? actualTriggers.length === 1
+                        ? '1 señal de alarma'
+                        : `${actualTriggers.length} señales de alarma`
+                      : actualTriggers.length === 1
+                      ? '1 warning'
+                      : `${actualTriggers.length} warnings`;
+                  return (
+                    <span className="text-red-700 font-sans font-bold flex items-center gap-1">
+                      <AlertOctagon className="w-3.5 h-3.5" />
+                      <span>{warningText}</span>
+                    </span>
+                  );
+                })()}
               </div>
 
               {/* Score snapshot grid */}

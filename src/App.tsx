@@ -17,14 +17,14 @@ import { TRANSLATIONS, SupportedLocale } from './i18n/translations';
 import { ROSTER_TEXT } from './i18n/roster';
 import { SHARE_THEME_TEXT } from './i18n/shareTheme';
 import { buildParentShareSummary, shareParentSummary } from './utils/share';
-import { ChevronRight, CheckCircle2, X } from 'lucide-react';
+import { ChevronRight, CheckCircle2, X, Users } from 'lucide-react';
 
 export const INITIAL_ATHLETES: AthleteProfile[] = [
-  { id: 'ath-1', name: 'Test Athlete 1', jerseyNumber: '12', sport: 'Football', position: 'Quarterback', baselineDate: '2026-08-15', baselineStabilityIndex: 0.078, baselineReactionTimeMs: 220, baselineKingDevickSeconds: 39.5 },
-  { id: 'ath-2', name: 'Test Athlete 2', jerseyNumber: '7', sport: 'Soccer', position: 'Midfielder', baselineDate: '2026-08-18', baselineStabilityIndex: 0.082, baselineReactionTimeMs: 235, baselineKingDevickSeconds: 41.2 },
-  { id: 'ath-3', name: 'Test Athlete 3', jerseyNumber: '44', sport: 'Ice Hockey', position: 'Defenseman', baselineDate: '2026-09-02', baselineStabilityIndex: 0.089, baselineReactionTimeMs: 228, baselineKingDevickSeconds: 42.0 },
-  { id: 'ath-4', name: 'Test Athlete 4', jerseyNumber: '18', sport: 'Lacrosse', position: 'Attack', baselineDate: '2026-08-22', baselineStabilityIndex: 0.085, baselineReactionTimeMs: 240, baselineKingDevickSeconds: 43.1 },
-  { id: 'ath-5', name: 'Test Athlete 5', jerseyNumber: '3', sport: 'Basketball', position: 'Point Guard', baselineDate: '2026-09-10', baselineStabilityIndex: 0.075, baselineReactionTimeMs: 215, baselineKingDevickSeconds: 38.0 },
+  { id: 'ath-1', name: 'Test Athlete 1', jerseyNumber: '12', sport: 'Football', position: 'Quarterback', baselineDate: '2026-08-15', hasRecordedBaseline: true, baselineStabilityIndex: 0.078, baselineReactionTimeMs: 220, baselineKingDevickSeconds: 39.5 },
+  { id: 'ath-2', name: 'Test Athlete 2', jerseyNumber: '7', sport: 'Soccer', position: 'Midfielder', baselineDate: '2026-08-18', hasRecordedBaseline: true, baselineStabilityIndex: 0.082, baselineReactionTimeMs: 235, baselineKingDevickSeconds: 41.2 },
+  { id: 'ath-3', name: 'Test Athlete 3', jerseyNumber: '44', sport: 'Ice Hockey', position: 'Defenseman', baselineDate: '2026-09-02', hasRecordedBaseline: true, baselineStabilityIndex: 0.089, baselineReactionTimeMs: 228, baselineKingDevickSeconds: 42.0 },
+  { id: 'ath-4', name: 'Test Athlete 4', jerseyNumber: '18', sport: 'Lacrosse', position: 'Attack', baselineDate: '2026-08-22', hasRecordedBaseline: true, baselineStabilityIndex: 0.085, baselineReactionTimeMs: 240, baselineKingDevickSeconds: 43.1 },
+  { id: 'ath-5', name: 'Test Athlete 5', jerseyNumber: '3', sport: 'Basketball', position: 'Point Guard', baselineDate: '2026-09-10', hasRecordedBaseline: true, baselineStabilityIndex: 0.075, baselineReactionTimeMs: 215, baselineKingDevickSeconds: 38.0 },
   { id: 'ath-6', name: 'Test Athlete 6', jerseyNumber: '55', sport: 'Football', position: 'Linebacker', hasRecordedBaseline: false }
 ];
 
@@ -74,6 +74,7 @@ export const App: React.FC = () => {
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
   const [manualShareSummary, setManualShareSummary] = useState<string | null>(null);
+  const [autoOpenAddModal, setAutoOpenAddModal] = useState<boolean>(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -168,7 +169,9 @@ export const App: React.FC = () => {
     upFlags = redFlags
   ) => {
     if (!activeAthlete) return;
-    const triage = calculateTriage(activeAthlete, upBalance, upReaction, upKD, upFlags);
+    const hasFlags = Object.entries(upFlags).some(([k, v]) => k !== 'hasRedFlags' && v === true);
+    const flagsWithMeta = { ...upFlags, hasRedFlags: hasFlags };
+    const triage = calculateTriage(activeAthlete, upBalance, upReaction, upKD, flagsWithMeta);
     const record: AssessmentRecord = {
       id: `session-${Date.now()}`,
       athleteId: activeAthlete.id,
@@ -178,7 +181,7 @@ export const App: React.FC = () => {
       balanceScore: upBalance,
       reactionScore: upReaction,
       kingDevickScore: upKD,
-      redFlags: upFlags,
+      redFlags: flagsWithMeta,
       triage
     };
     saveAssessment(record);
@@ -198,7 +201,8 @@ export const App: React.FC = () => {
     setReactionScore(skippedReaction);
     setKingDevickScore(skippedKD);
 
-    const triage = calculateTriage(activeAthlete, skippedBalance, skippedReaction, skippedKD, redFlags);
+    const flagsWithMeta = { ...redFlags, hasRedFlags: true };
+    const triage = calculateTriage(activeAthlete, skippedBalance, skippedReaction, skippedKD, flagsWithMeta);
     const record: AssessmentRecord = {
       id: `emergency-session-${Date.now()}`,
       athleteId: activeAthlete.id,
@@ -209,7 +213,7 @@ export const App: React.FC = () => {
       balanceScore: skippedBalance,
       reactionScore: skippedReaction,
       kingDevickScore: skippedKD,
-      redFlags,
+      redFlags: flagsWithMeta,
       triage
     };
     saveAssessment(record);
@@ -230,10 +234,17 @@ export const App: React.FC = () => {
   };
 
   const handleSelectTab = (tab: 'roster' | 'screening' | 'reports') => {
-    if (tab === 'roster') setView('roster');
-    else if (tab === 'screening') {
-      if (activeAthlete) setView('screening');
-      else if (athletes.length > 0) handleStartTriage(athletes[0]);
+    if (tab === 'roster') {
+      setView('roster');
+    } else if (tab === 'screening') {
+      if (activeAthlete) {
+        setView('screening');
+      } else if (athletes.length > 0) {
+        handleStartTriage(athletes[0]);
+      } else {
+        setView('roster');
+        setAutoOpenAddModal(true);
+      }
     } else if (tab === 'reports') {
       setView('reports');
     }
@@ -276,6 +287,8 @@ export const App: React.FC = () => {
                 setShowHistoryDrawer(true);
               }}
               lang={lang}
+              autoOpenAddModal={autoOpenAddModal}
+              onCloseAddModal={() => setAutoOpenAddModal(false)}
             />
           )}
 
@@ -295,6 +308,32 @@ export const App: React.FC = () => {
               )}
               {step === 'red_flags' && (
                 <div className="space-y-4">
+                  {/* Athlete dropdown selector bar */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex items-center justify-between gap-2.5">
+                    <label htmlFor="checkup-athlete-select" className="text-xs font-bold text-slate-700 whitespace-nowrap flex items-center gap-1.5 shrink-0">
+                      <Users className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{lang === 'es' ? 'Atleta:' : 'Athlete:'}</span>
+                    </label>
+                    <select
+                      id="checkup-athlete-select"
+                      aria-label={lang === 'es' ? 'Seleccionar Atleta' : 'Select Athlete'}
+                      value={activeAthlete.id}
+                      onChange={(e) => {
+                        const chosen = athletes.find(a => a.id === e.target.value);
+                        if (chosen) {
+                          handleStartTriage(chosen, isDemoMode);
+                        }
+                      }}
+                      className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 truncate min-h-[38px]"
+                    >
+                      {athletes.map(ath => (
+                        <option key={ath.id} value={ath.id}>
+                          {ath.name} (#{ath.jerseyNumber} • {ath.sport})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <RedFlagsChecklist
                     flags={redFlags}
                     onChange={setRedFlags}
