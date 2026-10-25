@@ -98,6 +98,29 @@ describe('SidelineSentry storage service', () => {
     });
   });
 
+  describe('Assessment migration', () => {
+    it('strips any trigger containing Safety Margin or Margen de seguridad from saved assessments', () => {
+      const assessmentWithMargin: AssessmentRecord = {
+        ...sampleAssessment,
+        id: 'session-margin',
+        triage: {
+          ...sampleAssessment.triage,
+          primaryTriggers: [
+            'Standard School Safety Margin Applied (+15% tighter baseline check)',
+            'Postural sway degraded +28.5%',
+            'Margen de seguridad escolar aplicado'
+          ]
+        }
+      };
+      mockStorage.setItem('sidelinesentry_assessments', JSON.stringify([assessmentWithMargin]));
+
+      const loaded = loadAssessments();
+      expect(loaded).toHaveLength(1);
+      expect(loaded[0].triage.primaryTriggers).toEqual(['Postural sway degraded +28.5%']);
+      expect(loaded[0].triage.primaryTriggers.some(t => /safety margin|margen de seguridad/i.test(t))).toBe(false);
+    });
+  });
+
   describe('Empty roster preservation', () => {
     it('keeps an intentionally empty array [] in storage without falling back to default athletes', () => {
       mockStorage.setItem('sidelinesentry_athletes', '[]');

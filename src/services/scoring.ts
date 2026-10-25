@@ -225,7 +225,7 @@ export function calculateTriage(
     primaryTriggers.push(`EMERGENCY PROTOCOL: ${activeRedFlags.join(', ')}`);
   }
 
-  // 2. Baseline Check & School Safety Margin
+  // 2. Baseline Check (Uses standard reference baseline if individual baseline is missing)
   const hasValidIndividualBaseline =
     (athlete.hasRecordedBaseline === true ||
       (athlete.hasRecordedBaseline !== false &&
@@ -240,21 +240,14 @@ export function calculateTriage(
 
   const missingBaseline = !hasValidIndividualBaseline;
 
-  // Apply +15% tighter threshold (0.85 multiplier) if athlete has no preseason baseline
-  const safetyMarginMultiplier = missingBaseline ? 0.85 : 1.0;
+  const SWAY_REMOVAL_THRESHOLD = 25.0;
+  const SWAY_EVALUATION_THRESHOLD = 15.0;
 
-  const SWAY_REMOVAL_THRESHOLD = 25.0 * safetyMarginMultiplier;
-  const SWAY_EVALUATION_THRESHOLD = 15.0 * safetyMarginMultiplier;
+  const REACTION_REMOVAL_THRESHOLD = 40.0;
+  const REACTION_EVALUATION_THRESHOLD = 20.0;
 
-  const REACTION_REMOVAL_THRESHOLD = 40.0 * safetyMarginMultiplier;
-  const REACTION_EVALUATION_THRESHOLD = 20.0 * safetyMarginMultiplier;
-
-  const KD_REMOVAL_THRESHOLD = 5.0 * safetyMarginMultiplier;
-  const KD_EVALUATION_THRESHOLD = 3.0 * safetyMarginMultiplier;
-
-  if (missingBaseline && !hasEmergencyRedFlags) {
-    primaryTriggers.push('Standard School Safety Margin Applied (+15% tighter baseline check)');
-  }
+  const KD_REMOVAL_THRESHOLD = 5.0;
+  const KD_EVALUATION_THRESHOLD = 3.0;
 
   let hasInvalidTrial = false;
 

@@ -11,6 +11,7 @@ import { ClinicianReportModal } from './components/ClinicianReportModal';
 import { RosterDashboard } from './components/RosterDashboard';
 import { AthleteHistoryDrawer } from './components/AthleteHistoryDrawer';
 import { ReportsView } from './components/ReportsView';
+import { RecoveryView } from './components/RecoveryView';
 import { SidelineHeader, SidelineBottomNav, AppView, AssessmentStep } from './components/SidelineChrome';
 import { loadAthletes, saveAthletes, loadAssessments, saveAssessment, deleteAthlete } from './services/storage';
 import { TRANSLATIONS, SupportedLocale } from './i18n/translations';
@@ -56,6 +57,8 @@ export const App: React.FC = () => {
   const [step, setStep] = useState<AssessmentStep>('red_flags');
   const [motionProvider, setMotionProvider] = useState<IMotionProvider>(() => createMotionProvider());
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+  const [isBaselineMode, setIsBaselineMode] = useState<boolean>(false);
+  const [baselineConfirmation, setBaselineConfirmation] = useState<string | null>(null);
 
   // Active Assessment State
   const [redFlags, setRedFlags] = useState<AssessmentRecord['redFlags']>(INITIAL_FLAGS);
@@ -82,6 +85,7 @@ export const App: React.FC = () => {
   const handleStartTriage = (athlete: AthleteProfile, asDemo = false) => {
     setActiveAthlete(athlete);
     setIsDemoMode(asDemo);
+    setIsBaselineMode(false);
     if (!asDemo) {
       setMotionProvider(createMotionProvider());
     }
@@ -90,6 +94,19 @@ export const App: React.FC = () => {
     setReactionScore({ ...DEFAULT_REACTION });
     setKingDevickScore({ ...DEFAULT_KD });
     setStep('red_flags');
+    setView('screening');
+  };
+
+  const handleStartBaseline = (athlete: AthleteProfile) => {
+    setActiveAthlete(athlete);
+    setIsDemoMode(false);
+    setIsBaselineMode(true);
+    setMotionProvider(createMotionProvider());
+    setRedFlags({ ...INITIAL_FLAGS });
+    setBalanceScore({ ...DEFAULT_BALANCE });
+    setReactionScore({ ...DEFAULT_REACTION });
+    setKingDevickScore({ ...DEFAULT_KD });
+    setStep('balance'); // Preseason baseline skips Step 1 Red Flags
     setView('screening');
   };
 
@@ -182,28 +199,32 @@ export const App: React.FC = () => {
   };
 
   const handleHeaderBack = () => {
-    if (view === 'screening') {
-      if (step === 'red_flags') setView('roster');
-      else if (step === 'balance') setStep('red_flags');
-      else if (step === 'reaction') setStep('balance');
-      else if (step === 'king_devick') setStep('reaction');
-    } else if (view === 'verdict' || view === 'reports') {
+    if (view === 'screening' || (view as string) === 'assessment') {
+      if (isBaselineMode) {
+        if (step === 'balance') {
+          setIsBaselineMode(false);
+          setView('roster');
+        } else if (step === 'reaction') {
+          setStep('balance');
+        } else if (step === 'king_devick') {
+          setStep('reaction');
+        }
+      } else {
+        if (step === 'red_flags') setView('roster');
+        else if (step === 'balance') setStep('red_flags');
+        else if (step === 'reaction') setStep('balance');
+        else if (step === 'king_devick') setStep('reaction');
+      }
+    } else if (view === 'verdict' || view === 'reports' || view === 'recovery') {
       setView('roster');
     }
   };
 
-  const handleSelectTab = (tab: 'roster' | 'screening' | 'reports') => {
+  const handleSelectTab = (tab: 'roster' | 'recovery' | 'reports') => {
     if (tab === 'roster') {
       setView('roster');
-    } else if (tab === 'screening') {
-      if (activeAthlete) {
-        setView('screening');
-      } else if (athletes.length > 0) {
-        handleStartTriage(athletes[0]);
-      } else {
-        setView('roster');
-        setAutoOpenAddModal(true);
-      }
+    } else if (tab === 'recovery') {
+      setView('recovery');
     } else if (tab === 'reports') {
       setView('reports');
     }
@@ -213,6 +234,8 @@ export const App: React.FC = () => {
     latestAssessment?.isEmergencyLockdown ||
     (view === 'screening' && Object.values(redFlags).some(Boolean))
   );
+
+  const baselineStepNum = step === 'balance' ? 1 : step === 'reaction' ? 2 : 3;
 
   return (
     <div className="min-h-screen bg-slate-100/80 flex flex-col items-center justify-start sm:py-6 sm:px-4 font-sans selection:bg-blue-600 selection:text-white">
@@ -225,6 +248,7 @@ export const App: React.FC = () => {
           onToggleLang={() => setLang(prev => (prev === 'en' ? 'es' : 'en'))}
           onBack={handleHeaderBack}
           isEmergencyLockdown={isEmergency}
+          isBaselineMode={isBaselineMode}
         />
 
         <main ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-slate-50/70 p-4 space-y-4">
@@ -232,6 +256,7 @@ export const App: React.FC = () => {
             <RosterDashboard
               athletes={athletes}
               onSelectAthlete={ath => handleStartTriage(ath, false)}
+              onRecordBaseline={handleStartBaseline}
               onAddAthlete={newAth => {
                 const updated = [newAth, ...athletes];
                 setAthletes(updated);
@@ -246,12 +271,39 @@ export const App: React.FC = () => {
               lang={lang}
               autoOpenAddModal={autoOpenAddModal}
               onCloseAddModal={() => setAutoOpenAddModal(false)}
+              confirmationNotice={baselineConfirmation}
+              onDismissConfirmation={() => setBaselineConfirmation(null)}
             />
           )}
 
-          {view === 'screening' && activeAthlete && (
+          {(view === 'screening' || (view as string) === 'assessment') && activeAthlete && (
             <div className="space-y-4">
-              {step === 'red_flags' && (
+              {/* Baseline Mode Notice Banner */}
+              {isBaselineMode && (
+                <div
+                  role="status"
+                  data-testid="recording-baseline-banner"
+                  className="bg-blue-50 border-2 border-blue-400 rounded-2xl p-3 text-blue-950 flex items-center justify-between gap-2 shadow-xs"
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+                    <span className="text-xs font-bold">
+                      {lang === 'es'
+                        ? `Registrando Línea Base de Pretemporada: ${activeAthlete.name} (Paso ${baselineStepNum} de 3)`
+                        : `Recording Preseason Baseline: ${activeAthlete.name} (Step ${baselineStepNum} of 3)`}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full whitespace-nowrap">
+                    {step === 'balance'
+                      ? (lang === 'es' ? 'Balance' : 'Balance')
+                      : step === 'reaction'
+                      ? (lang === 'es' ? 'Reacción' : 'Reaction')
+                      : (lang === 'es' ? 'Lectura' : 'Reading')}
+                  </span>
+                </div>
+              )}
+
+              {step === 'red_flags' && !isBaselineMode && (
                 <div className="space-y-4">
                   {/* Athlete dropdown selector bar */}
                   <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex items-center justify-between gap-2.5">
@@ -321,7 +373,14 @@ export const App: React.FC = () => {
                     setBalanceScore(score);
                     setStep('reaction');
                   }}
-                  onCancel={() => setStep('red_flags')}
+                  onCancel={() => {
+                    if (isBaselineMode) {
+                      setIsBaselineMode(false);
+                      setView('roster');
+                    } else {
+                      setStep('red_flags');
+                    }
+                  }}
                   lang={lang}
                 />
               )}
@@ -343,7 +402,39 @@ export const App: React.FC = () => {
                   baselineSeconds={activeAthlete.baselineKingDevickSeconds}
                   onComplete={score => {
                     setKingDevickScore(score);
-                    handleSynthesizeVerdict(balanceScore, reactionScore, score, redFlags);
+                    if (isBaselineMode) {
+                      const today = new Date().toISOString().split('T')[0];
+                      const stabilityIndex = balanceScore.stabilityIndex;
+                      const reactionMs = Math.round((reactionScore as { meanLatencyMs?: number }).meanLatencyMs ?? reactionScore.averageMs);
+                      const kdSec = parseFloat(((score as { totalDurationSeconds?: number }).totalDurationSeconds ?? score.durationSeconds).toFixed(1));
+
+                      const updatedAthletes = athletes.map(a => {
+                        if (a.id === activeAthlete.id) {
+                          return {
+                            ...a,
+                            hasRecordedBaseline: true,
+                            baselineDate: today,
+                            baselineStabilityIndex: stabilityIndex,
+                            baselineReactionTimeMs: reactionMs,
+                            baselineKingDevickSeconds: kdSec
+                          };
+                        }
+                        return a;
+                      });
+
+                      setAthletes(updatedAthletes);
+                      saveAthletes(updatedAthletes);
+
+                      const confirmationMsg = lang === 'es'
+                        ? `Línea base de pretemporada guardada para ${activeAthlete.name}: Balance ${stabilityIndex.toFixed(3)}, Reacción ${reactionMs} ms, Lectura ${kdSec.toFixed(1)} s`
+                        : `Preseason baseline saved for ${activeAthlete.name}: Balance ${stabilityIndex.toFixed(3)}, Reaction ${reactionMs} ms, Reading ${kdSec.toFixed(1)} s`;
+
+                      setBaselineConfirmation(confirmationMsg);
+                      setIsBaselineMode(false);
+                      setView('roster');
+                    } else {
+                      handleSynthesizeVerdict(balanceScore, reactionScore, score, redFlags);
+                    }
                   }}
                   onCancel={() => setStep('reaction')}
                   lang={lang}
@@ -386,6 +477,10 @@ export const App: React.FC = () => {
             </div>
           )}
 
+          {view === 'recovery' && (
+            <RecoveryView athletes={athletes} lang={lang} />
+          )}
+
           {view === 'reports' && (
             <ReportsView
               assessments={assessments}
@@ -395,7 +490,13 @@ export const App: React.FC = () => {
               lang={lang}
               onOpenReport={(rec, ath) => handleOpenReportModal(rec, ath)}
               onPrintReport={(rec, ath) => handleOpenReportModal(rec, ath)}
-              onStartCheck={() => setView('roster')}
+              onStartCheck={(ath) => {
+                if (ath) {
+                  handleStartTriage(ath, false);
+                } else {
+                  setView('roster');
+                }
+              }}
             />
           )}
         </main>

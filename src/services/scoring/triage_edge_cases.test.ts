@@ -137,7 +137,7 @@ describe('triage and scoring edge cases (correctness audit)', () => {
     expect(triage.kingDevickDeltaSeconds).toBe(0);
   });
 
-  it('rejects negative or invalid baseline values and applies safety margin', () => {
+  it('rejects negative or invalid baseline values and falls back to standard baseline without safety margin trigger', () => {
     const corruptedBaselineAthlete: AthleteProfile = {
       ...baseAthlete,
       hasRecordedBaseline: true,
@@ -148,7 +148,7 @@ describe('triage and scoring edge cases (correctness audit)', () => {
 
     const triage = calculateTriage(corruptedBaselineAthlete, normalBalance, normalReaction, normalKD, noRedFlags);
     expect(triage.hasIndividualBaseline).toBe(false);
-    expect(triage.primaryTriggers.some(t => t.includes('School Safety Margin'))).toBe(true);
+    expect(triage.primaryTriggers.some(t => t.includes('Safety Margin') || t.includes('School Safety'))).toBe(false);
   });
 
   it('flags zero physiological tremor floor (<0.005 m/s^2) in calculateTriage', () => {

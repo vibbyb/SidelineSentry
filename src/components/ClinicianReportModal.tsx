@@ -38,9 +38,6 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
   const [signatureUrl, setSignatureUrl] = useState<string | null>(assessment.certification?.signatureDataUrl || null);
   const [sessionHash, setSessionHash] = useState<string>(assessment.sessionHash || t.computingDigest);
 
-  const hasIndividualBaseline = athlete.hasRecordedBaseline !== false;
-  const mult = hasIndividualBaseline ? 1.0 : 0.85;
-
   const evaluatorInfo: EvaluatorReportInfo = { evaluatorName, evaluatorRole, licenseNumber, signatureUrl };
 
   // Compute report check code
@@ -118,7 +115,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
       sideline: assessment.balanceScore.skippedReason ? t.skippedWarningSigns : `${assessment.balanceScore.stabilityIndex.toFixed(3)} m/s²`,
       isSkipped: Boolean(assessment.balanceScore.skippedReason),
       change: `${assessment.triage.swayDegradationPercent > 0 ? '+' : ''}${assessment.triage.swayDegradationPercent.toFixed(1)}%`,
-      isFlagged: assessment.triage.swayDegradationPercent >= 25 * mult
+      isFlagged: assessment.triage.swayDegradationPercent >= 25
     },
     {
       name: lang === 'es' ? 'Prueba 3: Tiempo de Reacción' : 'Test 3: Reaction Time',
@@ -126,7 +123,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
       sideline: assessment.reactionScore.skippedReason ? t.skippedWarningSigns : `${assessment.reactionScore.averageMs} ms`,
       isSkipped: Boolean(assessment.reactionScore.skippedReason),
       change: `${assessment.triage.reactionDelayDeltaMs > 0 ? '+' : ''}${assessment.triage.reactionDelayDeltaMs} ms`,
-      isFlagged: assessment.triage.reactionDelayDeltaMs >= 40 * mult
+      isFlagged: assessment.triage.reactionDelayDeltaMs >= 40
     },
     {
       name: lang === 'es' ? 'Prueba 4: Lectura de Números' : 'Test 4: Number Reading',
@@ -134,7 +131,7 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
       sideline: assessment.kingDevickScore.skippedReason ? t.skippedWarningSigns : `${assessment.kingDevickScore.durationSeconds.toFixed(1)} s`,
       isSkipped: Boolean(assessment.kingDevickScore.skippedReason),
       change: `${assessment.triage.kingDevickDeltaSeconds > 0 ? '+' : ''}${assessment.triage.kingDevickDeltaSeconds.toFixed(1)}s (${assessment.kingDevickScore.errorsCount} ${t.errorsUnit})`,
-      isFlagged: assessment.triage.kingDevickDeltaSeconds >= 5 * mult
+      isFlagged: assessment.triage.kingDevickDeltaSeconds >= 5
     }
   ];
 

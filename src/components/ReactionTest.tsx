@@ -313,6 +313,11 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
             handleTap();
           }
         }}
+        onClick={() => {
+          if (phaseRef.current === 'waiting' || phaseRef.current === 'ready_to_tap') {
+            handleTap();
+          }
+        }}
         onKeyDown={(e) => {
           if (e.key === ' ' || e.key === 'Enter') {
             e.preventDefault();
@@ -362,7 +367,7 @@ export const ReactionTest: React.FC<ReactionTestProps> = ({
         {phase === 'trial_done' && (
           <div className="text-center">
             <div className="text-xs uppercase tracking-wider text-slate-600 mb-1 font-bold">
-              {t.trialTimeLabel.replace('{n}', String(currentTrial - 1))}
+              {(t.trialTimeLabel || 'Trial {n} Time').replace('{n}', String(currentTrial - 1))}
             </div>
             <div className="text-4xl font-black font-mono text-blue-700 mb-4 tabular-nums">{lastMs} ms</div>
             <button

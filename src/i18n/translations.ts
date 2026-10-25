@@ -16,7 +16,8 @@ export const TRANSLATIONS = {
     simulateDemo: 'Simulate Demo',
     languageToggle: 'Español',
     tabAthletes: 'Athletes',
-    tabQuickTest: 'Checkup',
+    tabRecovery: 'Recovery',
+    tabQuickTest: 'Recovery',
     tabReports: 'Reports',
 
     // Roster
@@ -98,6 +99,7 @@ export const TRANSLATIONS = {
     tapNow: 'Tap now',
     startTrial: 'Start Trial',
     nextTrial: 'Start Next Trial',
+    trialTimeLabel: 'Trial {n} Time',
 
     // Reading Test (Test 4)
     kdTitle: 'Test 4: Reading Test',
@@ -149,7 +151,8 @@ export const TRANSLATIONS = {
     simulateDemo: 'Simular Demostración',
     languageToggle: 'English',
     tabAthletes: 'Atletas',
-    tabQuickTest: 'Chequeo',
+    tabRecovery: 'Recuperación',
+    tabQuickTest: 'Recuperación',
     tabReports: 'Reportes',
 
     // Roster
@@ -231,6 +234,7 @@ export const TRANSLATIONS = {
     tapNow: 'Toque ahora',
     startTrial: 'Iniciar Intento',
     nextTrial: 'Iniciar Siguiente Intento',
+    trialTimeLabel: 'Tiempo del Intento {n}',
 
     // Reading Test (Test 4)
     kdTitle: 'Prueba 4: Prueba de Lectura',

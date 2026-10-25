@@ -108,7 +108,6 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     // Triage Verdict & Recommendations
     sidelineRecommendation: 'Sideline Recommendation',
     emergencyStopNotice: 'Emergency medical attention required',
-    safetyMarginNotice: 'No Preseason Baseline Applied',
     saveAsBaseline: 'Save as Preseason Baseline',
     baselineSaved: 'Baseline Saved',
 
@@ -128,7 +127,8 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
 
     // Navigation & App Chrome
     navAthletes: 'Athletes',
-    navCheckup: 'Checkup',
+    navRecovery: 'Recovery',
+    navCheckup: 'Recovery',
     navReports: 'Reports',
     emergencyBannerText: 'Emergency: get medical help now',
     step1Short: '1: Emergency',
@@ -223,8 +223,6 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     baselineSwayField: 'Baseline Balance',
     baselineReactionFieldShort: 'Reaction (ms)',
     baselineEyeFieldShort: 'Reading Test (s)',
-    schoolSafetyMarginActive: 'Standard Reference Baseline Active:',
-    schoolSafetyMarginActiveDesc: 'Typical reference scores are used (0.085 sway, 230ms reaction, 42.0s reading test).',
     cancelModalBtn: 'Cancel',
     saveAthleteModalBtn: 'Save Athlete',
 
@@ -233,7 +231,6 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     athleteLabel: 'Athlete:',
     emergencyStopNoticeTitle: 'Emergency Stop Triggered',
     emergencyStopNoticeDesc: 'Physical tests were skipped because of serious warning signs. The athlete should be seen by a doctor or athletic trainer immediately.',
-    noBaselineMarginNotice: 'This athlete does not have a preseason baseline on file. Standard reference baseline used.',
     warningSignsCount: 'Warning Signs & Score Changes ({count})',
     test2Title: 'Test 2: Balance Check',
     test3Title: 'Test 3: Reaction Speed',
@@ -369,7 +366,6 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     // Triage Verdict & Recommendations
     sidelineRecommendation: 'Recomendación de Campo',
     emergencyStopNotice: 'Se requiere atención médica de emergencia',
-    safetyMarginNotice: 'Sin Línea Base Previa Aplicada',
     saveAsBaseline: 'Guardar como Línea Base de Pretemporada',
     baselineSaved: 'Línea Base Guardada',
 
@@ -389,7 +385,8 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
 
     // Navigation & App Chrome
     navAthletes: 'Atletas',
-    navCheckup: 'Chequeo',
+    navRecovery: 'Recuperación',
+    navCheckup: 'Recuperación',
     navReports: 'Reportes',
     emergencyBannerText: 'Emergencia: busque atención médica de inmediato',
     step1Short: '1: Emergencia',
@@ -484,8 +481,6 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     baselineSwayField: 'Balance Base',
     baselineReactionFieldShort: 'Reacción (ms)',
     baselineEyeFieldShort: 'Lectura (s)',
-    schoolSafetyMarginActive: 'Línea Base de Referencia Activa:',
-    schoolSafetyMarginActiveDesc: 'Se usan puntajes típicos de referencia (0.085 oscilación, 230ms reacción, 42.0s prueba de lectura).',
     cancelModalBtn: 'Cancelar',
     saveAthleteModalBtn: 'Guardar Atleta',
 
@@ -494,7 +489,6 @@ export const REPORT_AND_FLOW_TRANSLATIONS = {
     athleteLabel: 'Atleta:',
     emergencyStopNoticeTitle: 'Parada de Emergencia Activada',
     emergencyStopNoticeDesc: 'Las pruebas físicas se omitieron debido a señales de alarma graves. El atleta debe ser evaluado por un médico o entrenador atlético de inmediato.',
-    noBaselineMarginNotice: 'Este atleta no tiene una línea base de pretemporada registrada. Se usó la línea base de referencia típica.',
     warningSignsCount: 'Señales de Alerta y Cambios de Puntaje ({count})',
     test2Title: 'Prueba 2: Chequeo de Equilibrio',
     test3Title: 'Prueba 3: Velocidad de Reacción',

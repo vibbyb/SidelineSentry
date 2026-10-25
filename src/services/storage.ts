@@ -84,29 +84,34 @@ export function loadAssessments(): AssessmentRecord[] {
       a => a && typeof a === 'object' && typeof a.id === 'string' && typeof a.athleteId === 'string'
     ) as AssessmentRecord[];
 
-    // Migrate any legacy saved assessments: if red flags are present, strip any skipped test entries from primaryTriggers
+    // Migrate any legacy saved assessments:
+    // 1. Strip any trigger containing 'Safety Margin' or 'Margen de seguridad'
+    // 2. If red flags are present, strip any skipped test entries from primaryTriggers
     let hasMigration = false;
     const migrated = valid.map(assessment => {
+      if (!assessment.triage?.primaryTriggers) return assessment;
+
       const redFlags = assessment.redFlags as Record<string, boolean | undefined> | undefined;
       const hasFlags =
         Boolean((redFlags as { hasRedFlags?: boolean } | undefined)?.hasRedFlags) ||
         (redFlags && Object.entries(redFlags).some(([k, v]) => k !== 'hasRedFlags' && v === true)) ||
         Boolean(assessment.isEmergencyLockdown);
 
-      if (hasFlags && assessment.triage?.primaryTriggers) {
-        const filteredTriggers = assessment.triage.primaryTriggers.filter(
-          t => !/skipped|omitid/i.test(t)
-        );
-        if (filteredTriggers.length !== assessment.triage.primaryTriggers.length) {
-          hasMigration = true;
-          return {
-            ...assessment,
-            triage: {
-              ...assessment.triage,
-              primaryTriggers: filteredTriggers
-            }
-          };
-        }
+      const filteredTriggers = assessment.triage.primaryTriggers.filter(t => {
+        if (/safety margin|margen de seguridad/i.test(t)) return false;
+        if (hasFlags && /skipped|omitid/i.test(t)) return false;
+        return true;
+      });
+
+      if (filteredTriggers.length !== assessment.triage.primaryTriggers.length) {
+        hasMigration = true;
+        return {
+          ...assessment,
+          triage: {
+            ...assessment.triage,
+            primaryTriggers: filteredTriggers
+          }
+        };
       }
       return assessment;
     });

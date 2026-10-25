@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AthleteProfile } from '../types/clinical';
-import { Plus, Search, ChevronRight, History, Trash2, RotateCcw } from 'lucide-react';
+import { Plus, Search, ChevronRight, History, Trash2, RotateCcw, CheckCircle2, X } from 'lucide-react';
 import { getAthleteHistory } from '../services/storage';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
 import { ROSTER_TEXT } from '../i18n/roster';
@@ -8,6 +8,7 @@ import { ROSTER_TEXT } from '../i18n/roster';
 interface RosterDashboardProps {
   athletes: AthleteProfile[];
   onSelectAthlete: (athlete: AthleteProfile) => void;
+  onRecordBaseline?: (athlete: AthleteProfile) => void;
   onAddAthlete: (athlete: AthleteProfile) => void;
   onDeleteAthlete?: (athleteId: string) => void;
   onRestoreDefaults?: () => void;
@@ -15,18 +16,23 @@ interface RosterDashboardProps {
   lang?: SupportedLocale;
   autoOpenAddModal?: boolean;
   onCloseAddModal?: () => void;
+  confirmationNotice?: string | null;
+  onDismissConfirmation?: () => void;
 }
 
 export const RosterDashboard: React.FC<RosterDashboardProps> = ({
   athletes,
   onSelectAthlete,
+  onRecordBaseline,
   onAddAthlete,
   onDeleteAthlete,
   onRestoreDefaults,
   onOpenHistory,
   lang = 'en',
   autoOpenAddModal,
-  onCloseAddModal
+  onCloseAddModal,
+  confirmationNotice,
+  onDismissConfirmation
 }) => {
   const t = TRANSLATIONS[lang];
   const rText = ROSTER_TEXT[lang];
@@ -113,6 +119,34 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
 
   return (
     <div className="space-y-3.5">
+      {/* Preseason Baseline Confirmation Banner */}
+      {confirmationNotice && (
+        <div
+          role="status"
+          data-testid="baseline-confirmation-banner"
+          className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-3.5 text-emerald-950 flex items-center justify-between gap-3 shadow-xs animate-fade-in"
+        >
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <CheckCircle2 className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <div className="text-xs font-bold leading-snug">
+              {confirmationNotice}
+            </div>
+          </div>
+          {onDismissConfirmation && (
+            <button
+              type="button"
+              onClick={onDismissConfirmation}
+              aria-label={lang === 'es' ? 'Cerrar aviso' : 'Dismiss notice'}
+              className="p-1.5 rounded-lg text-emerald-700 hover:text-emerald-950 hover:bg-emerald-100 transition min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Search and Sport Filter */}
       <div className="space-y-2">
         <div className="flex items-center gap-1.5">
@@ -237,7 +271,7 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs gap-2">
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex flex-wrap sm:flex-nowrap items-center justify-between text-xs gap-2">
                   <div className="text-[10px] text-slate-500 font-medium truncate">
                     {athlete.hasRecordedBaseline === false ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold border border-amber-300">
@@ -249,14 +283,25 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
                       </span>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => onSelectAthlete(athlete)}
-                    className="flex items-center space-x-1 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition active:scale-[0.98] shrink-0 min-h-[44px]"
-                  >
-                    <span>{t.initiateTriage}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => onRecordBaseline?.(athlete)}
+                      className="flex items-center justify-center px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-300 transition active:scale-[0.98] min-h-[44px]"
+                    >
+                      {athlete.baselineDate
+                        ? (lang === 'es' ? 'Actualizar base' : 'Update Baseline')
+                        : (lang === 'es' ? 'Registrar base' : 'Record Baseline')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSelectAthlete(athlete)}
+                      className="flex items-center space-x-1 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition active:scale-[0.98] min-h-[44px]"
+                    >
+                      <span>{lang === 'es' ? 'Iniciar revisión' : 'Start Checkup'}</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );

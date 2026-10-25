@@ -1,23 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { AthleteProfile } from '../types/clinical';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
-import { Shield, Globe, ChevronLeft, Users, Activity, FileText, Sun } from 'lucide-react';
+import { Shield, Globe, ChevronLeft, Users, FileText, Sun, HeartPulse } from 'lucide-react';
 import { initSunlightMode, toggleSunlightMode } from '../utils/theme';
 import { SHARE_THEME_TEXT } from '../i18n/shareTheme';
 
 export type AssessmentStep = 'red_flags' | 'balance' | 'reaction' | 'king_devick';
-export type AppView = 'roster' | 'screening' | 'verdict' | 'reports';
+export type AppView = 'roster' | 'screening' | 'assessment' | 'verdict' | 'reports' | 'recovery';
 
 interface AssessmentProgressBarProps {
   step: AssessmentStep;
   lang: SupportedLocale;
+  isBaselineMode?: boolean;
 }
 
-export const AssessmentProgressBar: React.FC<AssessmentProgressBarProps> = ({ step, lang }) => {
+export const AssessmentProgressBar: React.FC<AssessmentProgressBarProps> = ({ step, lang, isBaselineMode }) => {
   const t = TRANSLATIONS[lang];
-  const stepOrder: AssessmentStep[] = ['red_flags', 'balance', 'reaction', 'king_devick'];
+  const stepOrder: AssessmentStep[] = isBaselineMode
+    ? ['balance', 'reaction', 'king_devick']
+    : ['red_flags', 'balance', 'reaction', 'king_devick'];
   const currentIdx = stepOrder.indexOf(step);
   const stepNumber = currentIdx + 1;
+  const totalSteps = stepOrder.length;
 
   const stepLabels: Record<AssessmentStep, string> = {
     red_flags: t.step1Short,
@@ -32,9 +36,9 @@ export const AssessmentProgressBar: React.FC<AssessmentProgressBarProps> = ({ st
       aria-label={t.testProgressLabel}
       aria-valuenow={stepNumber}
       aria-valuemin={1}
-      aria-valuemax={4}
+      aria-valuemax={totalSteps}
       aria-valuetext={`${t.testProgressLabel}: ${stepLabels[step]}`}
-      className="grid grid-cols-4 gap-1.5 pt-2"
+      className={`grid gap-1.5 pt-2 ${isBaselineMode ? 'grid-cols-3' : 'grid-cols-4'}`}
     >
       {stepOrder.map((s, idx) => {
         const isDone = currentIdx > idx;
@@ -60,6 +64,7 @@ interface SidelineHeaderProps {
   onToggleLang: () => void;
   onBack: () => void;
   isEmergencyLockdown?: boolean;
+  isBaselineMode?: boolean;
 }
 
 export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
@@ -68,7 +73,8 @@ export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
   activeAthlete,
   lang,
   onToggleLang,
-  onBack
+  onBack,
+  isBaselineMode = false
 }) => {
   const t = TRANSLATIONS[lang];
   const shareText = SHARE_THEME_TEXT[lang];
@@ -134,7 +140,7 @@ export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
         </header>
       )}
 
-      {view === 'screening' && activeAthlete && (
+      {(view === 'screening' || (view as string) === 'assessment') && activeAthlete && (
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-2.5 shrink-0">
           <div className="flex items-center justify-between">
             <button
@@ -142,7 +148,7 @@ export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
               className="flex items-center text-xs font-bold text-blue-600 hover:text-blue-800 transition active:scale-95 py-1 pr-2 min-h-[44px]"
             >
               <ChevronLeft className="w-4 h-4 stroke-[2.5] -ml-1 mr-0.5" />
-              <span>{step === 'red_flags' ? t.backToRoster : t.backBtn}</span>
+              <span>{step === 'red_flags' || (isBaselineMode && step === 'balance') ? t.backToRoster : t.backBtn}</span>
             </button>
 
             <div className="text-center">
@@ -153,10 +159,20 @@ export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
                 </span>
               </div>
               <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
-                {step === 'red_flags' && t.step1Of4}
-                {step === 'balance' && t.step2Of4}
-                {step === 'reaction' && t.step3Of4}
-                {step === 'king_devick' && t.step4Of4}
+                {isBaselineMode ? (
+                  <>
+                    {step === 'balance' && (lang === 'es' ? 'Paso 1 de 3 (Balance)' : 'Step 1 of 3 (Balance)')}
+                    {step === 'reaction' && (lang === 'es' ? 'Paso 2 de 3 (Reacción)' : 'Step 2 of 3 (Reaction Time)')}
+                    {step === 'king_devick' && (lang === 'es' ? 'Paso 3 de 3 (Lectura)' : 'Step 3 of 3 (Number Reading)')}
+                  </>
+                ) : (
+                  <>
+                    {step === 'red_flags' && t.step1Of4}
+                    {step === 'balance' && t.step2Of4}
+                    {step === 'reaction' && t.step3Of4}
+                    {step === 'king_devick' && t.step4Of4}
+                  </>
+                )}
               </div>
             </div>
 
@@ -173,7 +189,7 @@ export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
             </div>
           </div>
 
-          <AssessmentProgressBar step={step} lang={lang} />
+          <AssessmentProgressBar step={step} lang={lang} isBaselineMode={isBaselineMode} />
         </header>
       )}
 
@@ -205,6 +221,34 @@ export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
         </header>
       )}
 
+      {view === 'recovery' && (
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3 flex items-center justify-between shrink-0">
+          <button
+            onClick={onBack}
+            className="flex items-center text-xs font-bold text-blue-600 hover:text-blue-800 transition active:scale-95 py-1 pr-2 min-h-[44px]"
+          >
+            <ChevronLeft className="w-4 h-4 stroke-[2.5] -ml-1 mr-0.5" />
+            <span>{t.backToRoster}</span>
+          </button>
+
+          <span className="font-extrabold text-sm tracking-tight text-slate-900">
+            {lang === 'es' ? 'Recuperación de Atletas' : 'Athlete Recovery'}
+          </span>
+
+          <div className="flex items-center gap-1.5">
+            {sunlightToggleBtn}
+            <button
+              onClick={onToggleLang}
+              className="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 transition min-h-[44px] min-w-[44px] flex items-center justify-center"
+              title={lang === 'en' ? 'Cambiar a Español' : 'Switch to English'}
+              aria-label={lang === 'en' ? 'Cambiar a Español' : 'Switch to English'}
+            >
+              {lang === 'en' ? 'ES' : 'EN'}
+            </button>
+          </div>
+        </header>
+      )}
+
       {view === 'reports' && (
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3 flex items-center justify-between shrink-0">
           <button
@@ -216,7 +260,7 @@ export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
           </button>
 
           <span className="font-extrabold text-sm tracking-tight text-slate-900">
-            {lang === 'en' ? 'Sideline Reports' : 'Reportes de Banda'}
+            {lang === 'es' ? 'Reportes de Banda' : 'Sideline Reports'}
           </span>
 
           <div className="flex items-center gap-1.5">
@@ -238,9 +282,9 @@ export const SidelineHeader: React.FC<SidelineHeaderProps> = ({
 
 interface SidelineBottomNavProps {
   view: AppView;
-  showHistoryDrawer: boolean;
+  showHistoryDrawer?: boolean;
   lang: SupportedLocale;
-  onSelectTab: (tab: 'roster' | 'screening' | 'reports') => void;
+  onSelectTab: (tab: 'roster' | 'recovery' | 'reports') => void;
 }
 
 export const SidelineBottomNav: React.FC<SidelineBottomNavProps> = ({
@@ -249,7 +293,13 @@ export const SidelineBottomNav: React.FC<SidelineBottomNavProps> = ({
   lang,
   onSelectTab
 }) => {
-  const t = TRANSLATIONS[lang];
+  const isAthletesActive =
+    view === 'roster' ||
+    view === 'screening' ||
+    (view as string) === 'assessment' ||
+    view === 'verdict';
+  const isRecoveryActive = view === 'recovery';
+  const isReportsActive = view === 'reports' || Boolean(showHistoryDrawer);
 
   return (
     <nav
@@ -258,35 +308,35 @@ export const SidelineBottomNav: React.FC<SidelineBottomNavProps> = ({
     >
       <button
         onClick={() => onSelectTab('roster')}
-        aria-current={view === 'roster' ? 'page' : undefined}
+        aria-current={isAthletesActive ? 'page' : undefined}
         className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-lg transition active:scale-95 min-h-[44px] ${
-          view === 'roster' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600 font-medium'
+          isAthletesActive ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600 font-medium'
         }`}
       >
         <Users className="w-5 h-5 stroke-[2.2]" />
-        <span className="text-[10px]">{t.tabAthletes}</span>
+        <span className="text-[10px]">{lang === 'es' ? 'Atletas' : 'Athletes'}</span>
       </button>
 
       <button
-        onClick={() => onSelectTab('screening')}
-        aria-current={view === 'screening' ? 'page' : undefined}
+        onClick={() => onSelectTab('recovery')}
+        aria-current={isRecoveryActive ? 'page' : undefined}
         className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-lg transition active:scale-95 min-h-[44px] ${
-          view === 'screening' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600 font-medium'
+          isRecoveryActive ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600 font-medium'
         }`}
       >
-        <Activity className="w-5 h-5 stroke-[2.2]" />
-        <span className="text-[10px]">{t.tabQuickTest}</span>
+        <HeartPulse className="w-5 h-5 stroke-[2.2]" />
+        <span className="text-[10px]">{lang === 'es' ? 'Recuperación' : 'Recovery'}</span>
       </button>
 
       <button
         onClick={() => onSelectTab('reports')}
-        aria-current={view === 'reports' || showHistoryDrawer ? 'page' : undefined}
+        aria-current={isReportsActive ? 'page' : undefined}
         className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-lg transition active:scale-95 min-h-[44px] ${
-          view === 'reports' || showHistoryDrawer ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600 font-medium'
+          isReportsActive ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600 font-medium'
         }`}
       >
         <FileText className="w-5 h-5 stroke-[2.2]" />
-        <span className="text-[10px]">{t.tabReports}</span>
+        <span className="text-[10px]">{lang === 'es' ? 'Reportes' : 'Reports'}</span>
       </button>
     </nav>
   );

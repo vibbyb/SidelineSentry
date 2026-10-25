@@ -34,10 +34,7 @@ export function translateTrigger(trig: string, locale: SupportedLocale = 'en'): 
     return replaced;
   }
 
-  // Safety margins and sensor data
-  if (trig.includes('Standard School Safety Margin Applied')) {
-    return 'Margen de seguridad escolar aplicado (evaluación de base +15% más estricta)';
-  }
+  // Sensor data and integrity checks
   if (trig.includes('Corrupted Sensor / Timing Telemetry') || trig.includes('Corrupted or non-finite')) {
     return 'Datos de sensor o tiempo dañados: Métrica no válida detectada. Repetir prueba requerido.';
   }
