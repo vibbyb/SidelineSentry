@@ -265,20 +265,6 @@ export function toggleReturnToPlayStep(
       }
     }
 
-    // Medical clearance gate: Step 5 and Step 6 require medical clearance
-    if (stepNumber === 5 || stepNumber === 6) {
-      const clearance = record.returnToPlay.medicalClearance;
-      const hasClearance = clearance && clearance.clearedByProvider && clearance.providerName.trim().length > 0;
-      if (!hasClearance) {
-        return {
-          ...record,
-          lessThan24hWarning: record.returnToPlay.lessThan24hWarning,
-          success: false,
-          error: 'Medical provider clearance is required before completing steps 5 and 6.'
-        };
-      }
-    }
-
     // Mark current step as complete
     steps[targetIndex].completed = true;
     steps[targetIndex].completedDate = dateStr || new Date().toISOString().split('T')[0];

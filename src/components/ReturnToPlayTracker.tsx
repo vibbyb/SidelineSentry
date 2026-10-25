@@ -4,7 +4,6 @@ import { AthleteRecoveryRecord } from '../types/recovery';
 import {
   loadAthleteRecovery,
   toggleReturnToPlayStep,
-  setMedicalClearance,
   resetReturnToPlay
 } from '../services/recovery';
 import { RECOVERY_TEXT } from '../i18n/recovery';
@@ -14,7 +13,6 @@ import {
   Check,
   Lock,
   RotateCcw,
-  Stethoscope,
   ShieldAlert,
   Info
 } from 'lucide-react';
@@ -34,16 +32,6 @@ export const ReturnToPlayTracker: React.FC<ReturnToPlayTrackerProps> = ({
     loadAthleteRecovery(athlete.id)
   );
 
-  const [providerName, setProviderName] = useState(
-    record.returnToPlay.medicalClearance.providerName || ''
-  );
-  const [clearanceDate, setClearanceDate] = useState(
-    record.returnToPlay.medicalClearance.clearanceDate ||
-      new Date().toISOString().split('T')[0]
-  );
-  const [isCleared, setIsCleared] = useState(
-    record.returnToPlay.medicalClearance.clearedByProvider
-  );
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
 
@@ -51,12 +39,6 @@ export const ReturnToPlayTracker: React.FC<ReturnToPlayTrackerProps> = ({
   useEffect(() => {
     const updated = loadAthleteRecovery(athlete.id);
     setRecord(updated);
-    setProviderName(updated.returnToPlay.medicalClearance.providerName || '');
-    setIsCleared(updated.returnToPlay.medicalClearance.clearedByProvider);
-    setClearanceDate(
-      updated.returnToPlay.medicalClearance.clearanceDate ||
-        new Date().toISOString().split('T')[0]
-    );
     setShowResetConfirm(false);
     setValidationMessage(null);
   }, [athlete.id]);
@@ -71,9 +53,6 @@ export const ReturnToPlayTracker: React.FC<ReturnToPlayTrackerProps> = ({
   };
 
   const steps = record.returnToPlay.steps;
-  const clearance = record.returnToPlay.medicalClearance;
-  const hasMedicalClearance =
-    clearance.clearedByProvider && clearance.providerName.trim().length > 0;
 
   // Toggle step handler
   const handleToggleStep = (stepNumber: number, currentCompleted: boolean) => {
@@ -87,11 +66,6 @@ export const ReturnToPlayTracker: React.FC<ReturnToPlayTrackerProps> = ({
           setValidationMessage(t.rtpStepLocked);
           return;
         }
-      }
-
-      if ((stepNumber === 5 || stepNumber === 6) && !hasMedicalClearance) {
-        setValidationMessage(t.rtpClearanceWarning);
-        return;
       }
     }
 
@@ -118,30 +92,10 @@ export const ReturnToPlayTracker: React.FC<ReturnToPlayTrackerProps> = ({
     setRecord(result);
   };
 
-  // Update medical clearance
-  const handleClearanceToggle = (checked: boolean) => {
-    setIsCleared(checked);
-    const updated = setMedicalClearance(athlete.id, checked, providerName, clearanceDate);
-    setRecord(updated);
-  };
-
-  const handleProviderNameBlur = () => {
-    const updated = setMedicalClearance(athlete.id, isCleared, providerName, clearanceDate);
-    setRecord(updated);
-  };
-
-  const handleClearanceDateChange = (newDate: string) => {
-    setClearanceDate(newDate);
-    const updated = setMedicalClearance(athlete.id, isCleared, providerName, newDate);
-    setRecord(updated);
-  };
-
   // Reset plan
   const handleResetPlan = () => {
     const updated = resetReturnToPlay(athlete.id);
     setRecord(updated);
-    setIsCleared(false);
-    setProviderName('');
     setShowResetConfirm(false);
     setValidationMessage(null);
   };
@@ -198,8 +152,6 @@ export const ReturnToPlayTracker: React.FC<ReturnToPlayTrackerProps> = ({
 
             const isPreviousComplete =
               stepNum === 1 || Boolean(steps[stepNum - 2]?.completed);
-            const needsClearance = stepNum === 5 || stepNum === 6;
-            const isBlockedByClearance = needsClearance && !hasMedicalClearance;
             const isLocked = !step.completed && !isPreviousComplete;
 
             return (
@@ -281,11 +233,6 @@ export const ReturnToPlayTracker: React.FC<ReturnToPlayTrackerProps> = ({
                           <Lock className="w-3 h-3" />
                           <span>{t.rtpStepLocked}</span>
                         </span>
-                      ) : isBlockedByClearance ? (
-                        <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 font-medium flex items-center space-x-1">
-                          <Stethoscope className="w-3 h-3 text-amber-600" />
-                          <span>{t.rtpClearanceWarning}</span>
-                        </span>
                       ) : (
                         <span className="text-[10px] text-blue-700 font-medium">
                           Ready to attempt (at least 24h symptom-free)
@@ -300,60 +247,14 @@ export const ReturnToPlayTracker: React.FC<ReturnToPlayTrackerProps> = ({
         </div>
       </div>
 
-      {/* Healthcare Provider Clearance Box */}
-      <div className="p-4 rounded-xl bg-white border border-slate-300 shadow-sm space-y-3">
-        <div className="flex items-center space-x-2">
-          <Stethoscope className="w-4 h-4 text-blue-700" />
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            {t.rtpClearanceTitle}
-          </h3>
-        </div>
-
-        <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-          {t.rtpClearanceSubtitle}
+      {/* Educational Guidance Notice Banner */}
+      <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-950 text-xs flex items-start space-x-3 shadow-sm">
+        <Info className="w-5 h-5 text-blue-700 flex-shrink-0 mt-0.5" />
+        <p className="font-medium leading-relaxed">
+          {lang === 'es'
+            ? 'Recordatorio: Este registro es una guía educativa basada en CDC HEADS UP. El atleta debe contar con autorización escrita de un médico o profesional de la salud antes de volver a prácticas con contacto (Paso 5) o partidos (Paso 6).'
+            : 'Reminder: This tracker is an educational guide based on CDC HEADS UP. An athlete should have written clearance from a doctor or licensed healthcare provider before returning to full-contact practice (Step 5) or games (Step 6).'}
         </p>
-
-        {/* Clearance checkbox with >=44px touch target */}
-        <label className="flex items-center space-x-3 cursor-pointer min-h-[44px] p-2 -ml-2 rounded-lg hover:bg-slate-50 transition">
-          <input
-            type="checkbox"
-            checked={isCleared}
-            onChange={e => handleClearanceToggle(e.target.checked)}
-            className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-          />
-          <span className="text-xs text-slate-800 font-medium leading-snug">
-            {t.rtpClearanceCheckbox}
-          </span>
-        </label>
-
-        {/* Provider inputs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-              {t.rtpProviderNameLabel}
-            </label>
-            <input
-              type="text"
-              value={providerName}
-              onChange={e => setProviderName(e.target.value)}
-              onBlur={handleProviderNameBlur}
-              placeholder={t.rtpProviderNamePlaceholder}
-              className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 min-h-[44px]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-              {t.rtpClearanceDateLabel}
-            </label>
-            <input
-              type="date"
-              value={clearanceDate}
-              onChange={e => handleClearanceDateChange(e.target.value)}
-              className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 min-h-[44px]"
-            />
-          </div>
-        </div>
       </div>
 
       {/* Reset Plan Button & Confirmation */}

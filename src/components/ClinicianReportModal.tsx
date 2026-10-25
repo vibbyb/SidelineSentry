@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AthleteProfile, AssessmentRecord } from '../types/clinical';
-import { Printer, Copy, Check, X, Shield, CheckCircle2 } from 'lucide-react';
-import { SignatureCanvas } from './SignatureCanvas';
+import { Printer, Copy, Check, X, Shield } from 'lucide-react';
 import { generateSessionHash } from '../services/security/sessionHash';
 import { copyToClipboard } from '../utils/clipboard';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
@@ -32,13 +31,21 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
   const copiedTimeoutRef = useRef<number | null>(null);
 
   const [notes, setNotes] = useState<string>(() => getSportBiomechanicsNote(athlete.sport, lang));
-  const [evaluatorName, setEvaluatorName] = useState<string>(assessment.certification?.evaluatorName || '');
-  const evaluatorRole = assessment.certification?.credential || 'OTHER';
-  const licenseNumber = assessment.certification?.licenseNumber || '';
-  const [signatureUrl, setSignatureUrl] = useState<string | null>(assessment.certification?.signatureDataUrl || null);
   const [sessionHash, setSessionHash] = useState<string>(assessment.sessionHash || t.computingDigest);
 
-  const evaluatorInfo: EvaluatorReportInfo = { evaluatorName, evaluatorRole, licenseNumber, signatureUrl };
+  const evaluatorInfo: EvaluatorReportInfo = assessment.certification
+    ? {
+        evaluatorName: assessment.certification.evaluatorName,
+        evaluatorRole: assessment.certification.credential,
+        licenseNumber: assessment.certification.licenseNumber,
+        signatureUrl: assessment.certification.signatureDataUrl || null
+      }
+    : {
+        evaluatorName: '',
+        evaluatorRole: 'OTHER',
+        licenseNumber: '',
+        signatureUrl: null
+      };
 
   // Compute report check code
   useEffect(() => {
@@ -53,10 +60,6 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
       reactionAvg: assessment.reactionScore.averageMs,
       kdSeconds: assessment.kingDevickScore.durationSeconds,
       redFlags: assessment.redFlags,
-      evaluatorName,
-      evaluatorRole,
-      licenseNumber,
-      hasSignature: Boolean(signatureUrl),
       notes
     });
 
@@ -65,26 +68,18 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
     });
 
     return () => { isCurrent = false; };
-  }, [assessment, athlete.id, evaluatorName, evaluatorRole, licenseNumber, signatureUrl, notes]);
+  }, [assessment, athlete.id, notes]);
 
   const handleClose = useCallback(() => {
     if (onUpdateAssessment) {
-      const hasCertification = evaluatorName.trim().length > 0 || !!signatureUrl;
       onUpdateAssessment({
         ...assessment,
         sessionHash,
-        certification: hasCertification ? {
-          evaluatorName,
-          credential: evaluatorRole,
-          licenseNumber,
-          signedAt: assessment.certification?.signedAt || new Date().toISOString(),
-          signatureDataUrl: signatureUrl || undefined,
-          sessionHash
-        } : undefined
+        certification: assessment.certification
       });
     }
     onClose();
-  }, [assessment, evaluatorName, evaluatorRole, licenseNumber, onClose, onUpdateAssessment, sessionHash, signatureUrl]);
+  }, [assessment, onClose, onUpdateAssessment, sessionHash]);
 
   // Escape key listener & timeout cleanup on unmount
   useEffect(() => {
@@ -278,49 +273,6 @@ export const ClinicianReportModal: React.FC<ClinicianReportModalProps> = ({
             </div>
           </div>
 
-          {/* Evaluator Sign-Off Block */}
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 print:bg-white print:border-gray-300 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2 print:border-gray-300">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-blue-700 print:text-black flex items-center space-x-1.5">
-                <CheckCircle2 className="w-4 h-4 text-blue-700" />
-                <span>{t.certBlockTitle}</span>
-              </h4>
-              <span className="text-[10px] text-slate-500 font-medium">{t.schoolSidelineBadge}</span>
-            </div>
-
-            <div className="text-xs">
-              <label className="text-[11px] text-slate-700 font-bold block mb-1">
-                {lang === 'es' ? 'Evaluado por (Nombre del entrenador o personal)' : 'Checked by (Coach or Staff Name)'}
-              </label>
-              <input
-                type="text"
-                value={evaluatorName}
-                onChange={e => setEvaluatorName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600 text-xs print:bg-white print:text-black print:border-gray-300 shadow-sm"
-                placeholder={lang === 'es' ? 'Ej. Entrenador Smith' : 'e.g. Coach Smith'}
-              />
-            </div>
-
-            {/* Signature Canvas */}
-            <div className="pt-2">
-              <SignatureCanvas
-                label={t.signatureLabel}
-                clearLabel={t.clearSig}
-                initialSignature={signatureUrl}
-                lang={lang}
-                onChange={url => setSignatureUrl(url)}
-                onSignatureChange={url => setSignatureUrl(url || null)}
-              />
-              {signatureUrl && (
-                <div className="text-[10px] text-emerald-700 flex items-center space-x-1 mt-1 font-mono font-bold">
-                  <Check className="w-3 h-3" />
-                  <span>{t.sigVerifiedEmbedded}</span>
-                </div>
-              )}
-            </div>
-
-            <p className="text-[10px] text-slate-600 leading-tight italic font-medium">{t.attestationStatement}</p>
-          </div>
 
           {/* Parent & Caregiver Directives */}
           <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 print:bg-gray-100 print:border-gray-300 text-xs space-y-2 shadow-sm">

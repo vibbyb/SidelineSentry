@@ -82,7 +82,7 @@ describe('Recovery Service (CDC Return to Play & Symptom Log)', () => {
     });
   });
 
-  describe('Medical Clearance Gate on Steps 5 & 6', () => {
+  describe('Sequential Step Enforcement for Steps 5 & 6', () => {
     beforeEach(() => {
       // Complete steps 1 to 4
       toggleReturnToPlayStep('ath1', 1, true, '2026-10-20');
@@ -91,21 +91,19 @@ describe('Recovery Service (CDC Return to Play & Symptom Log)', () => {
       toggleReturnToPlayStep('ath1', 4, true, '2026-10-23');
     });
 
-    it('blocks Step 5 without medical clearance', () => {
+    it('allows Step 5 sequentially once Step 4 is completed without requiring digital clearance form', () => {
       const res = toggleReturnToPlayStep('ath1', 5, true, '2026-10-24');
-      expect(res.success).toBe(false);
-      expect(res.returnToPlay.steps[4].completed).toBe(false);
+      expect(res.success).toBe(true);
+      expect(res.returnToPlay.steps[4].completed).toBe(true);
     });
 
-    it('blocks Step 5 if providerName is empty string even if clearedByProvider is true', () => {
-      setMedicalClearance('ath1', true, '   ');
-      const res = toggleReturnToPlayStep('ath1', 5, true, '2026-10-24');
+    it('blocks Step 6 if Step 5 is not completed', () => {
+      const res = toggleReturnToPlayStep('ath1', 6, true, '2026-10-25');
       expect(res.success).toBe(false);
-      expect(res.returnToPlay.steps[4].completed).toBe(false);
+      expect(res.returnToPlay.steps[5].completed).toBe(false);
     });
 
-    it('allows Step 5 and Step 6 once valid medical clearance is set', () => {
-      setMedicalClearance('ath1', true, 'Dr. Sarah Smith, MD', '2026-10-24');
+    it('allows Step 6 sequentially once Step 5 is completed', () => {
       const s5 = toggleReturnToPlayStep('ath1', 5, true, '2026-10-24');
       expect(s5.success).toBe(true);
       expect(s5.returnToPlay.steps[4].completed).toBe(true);
@@ -115,14 +113,14 @@ describe('Recovery Service (CDC Return to Play & Symptom Log)', () => {
       expect(s6.returnToPlay.steps[5].completed).toBe(true);
     });
 
-    it('revoking medical clearance automatically unchecks Step 5 and Step 6', () => {
-      setMedicalClearance('ath1', true, 'Dr. Sarah Smith, MD', '2026-10-24');
+    it('unchecking Step 4 automatically unchecks Step 5 and Step 6', () => {
       toggleReturnToPlayStep('ath1', 5, true, '2026-10-24');
       toggleReturnToPlayStep('ath1', 6, true, '2026-10-25');
 
-      const revoked = setMedicalClearance('ath1', false, '');
-      expect(revoked.returnToPlay.steps[4].completed).toBe(false);
-      expect(revoked.returnToPlay.steps[5].completed).toBe(false);
+      const uncheckRes = toggleReturnToPlayStep('ath1', 4, false);
+      expect(uncheckRes.returnToPlay.steps[3].completed).toBe(false);
+      expect(uncheckRes.returnToPlay.steps[4].completed).toBe(false);
+      expect(uncheckRes.returnToPlay.steps[5].completed).toBe(false);
     });
   });
 

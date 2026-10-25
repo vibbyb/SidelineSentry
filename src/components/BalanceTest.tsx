@@ -5,7 +5,7 @@ import { WaveformCanvas } from './WaveformCanvas';
 import { playCountdownPip, playTestStart, playTestComplete, warmAudioContext } from '../services/audio';
 import { auditPosturalSway } from '../services/scoring';
 import { SimulatedMotionProvider, round3 } from '../services/motion';
-import { Volume2, VolumeX, Play, Zap, CheckCircle2, AlertTriangle, RotateCcw, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Volume2, VolumeX, Play, CheckCircle2, AlertTriangle, RotateCcw, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { TRANSLATIONS, SupportedLocale } from '../i18n/translations';
 import { TEST_ASSIST_TEXT } from '../i18n/testAssist';
 import { isVoiceSupported, getVoiceEnabled, setVoiceEnabled, cancelVoice, speakInstruction } from '../services/speech';
@@ -312,18 +312,6 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
     onCancel();
   };
 
-  const handleTriggerLossOfBalance = () => {
-    if (activeProvider instanceof SimulatedMotionProvider) {
-      activeProvider.triggerPerturbation(1.6);
-    }
-  };
-
-  const handleTriggerGripSlip = () => {
-    if (activeProvider instanceof SimulatedMotionProvider) {
-      activeProvider.triggerPerturbation(3.8);
-    }
-  };
-
   return (
     <div className="bg-white border border-slate-300 rounded-xl p-6 shadow-sm relative overflow-hidden">
       <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl mb-4 shadow-xs">
@@ -479,27 +467,6 @@ export const BalanceTest: React.FC<BalanceTestProps> = ({
               style={{ width: `${((15 - timeLeft) / 15) * 100}%` }}
             />
           </div>
-
-          {isSimulated && (
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={handleTriggerLossOfBalance}
-                className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-amber-50 border border-amber-300 hover:bg-amber-100 text-amber-900 font-bold text-xs transition shadow-sm min-h-[44px]"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-600" />
-                <span>{t.simulateUnsteady}</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleTriggerGripSlip}
-                className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-red-50 border border-red-300 hover:bg-red-100 text-red-900 font-bold text-xs transition shadow-sm min-h-[44px]"
-              >
-                <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
-                <span>{t.simulatePhoneSlip}</span>
-              </button>
-            </div>
-          )}
         </div>
       )}
 

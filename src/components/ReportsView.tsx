@@ -8,7 +8,6 @@ import {
   AlertOctagon,
   Clock,
   User,
-  ShieldCheck,
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
@@ -551,12 +550,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                                       <span>
                                         {t.evaluator}: <strong className="text-slate-900 font-bold">{rec.certification.evaluatorName}</strong> ({rec.certification.credential})
                                       </span>
-                                      {rec.certification.signatureDataUrl && (
-                                        <span className="text-emerald-700 font-mono text-[9px] font-bold flex items-center gap-1">
-                                          <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                                          <span>{t.signed}</span>
-                                        </span>
-                                      )}
                                     </div>
                                   )}
 
